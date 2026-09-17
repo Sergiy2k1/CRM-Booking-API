@@ -1,0 +1,12 @@
+bin/
+obj/
+/packages/
+.idea/
+*.user
+*.DotSettings.user
+riderModule.iml
+/_ReSharper.Caches/
+TestResults/
+.env
+.env.*
+!.env.example
