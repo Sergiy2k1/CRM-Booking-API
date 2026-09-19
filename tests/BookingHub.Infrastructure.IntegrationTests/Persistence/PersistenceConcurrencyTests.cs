@@ -383,4 +383,99 @@ public sealed class PersistenceConcurrencyTests
             StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task WorkingHoursExclusionViolationShouldBecomeConflict()
+    {
+        await using var postgreSqlContainer =
+            new PostgreSqlBuilder("postgres:17-alpine")
+                .WithDatabase("bookinghub")
+                .WithUsername("bookinghub")
+                .WithPassword("bookinghub")
+                .Build();
+
+        await postgreSqlContainer.StartAsync(
+            TestContext.Current.CancellationToken);
+
+        var options =
+            new DbContextOptionsBuilder<BookingHubDbContext>()
+                .UseNpgsql(
+                    postgreSqlContainer.GetConnectionString())
+                .Options;
+
+        var organizationId = Guid.NewGuid();
+        var employeeId = Guid.NewGuid();
+
+        var createdAtUtc =
+            new DateTimeOffset(
+                2026,
+                9,
+                20,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        await using (var setupContext =
+                     new BookingHubDbContext(options))
+        {
+            await setupContext.Database.MigrateAsync(
+                TestContext.Current.CancellationToken);
+
+            setupContext.AddRange(
+                Organization.Create(
+                    organizationId,
+                    "Beauty Studio",
+                    "beauty-studio",
+                    "UTC",
+                    createdAtUtc),
+                Employee.Create(
+                    employeeId,
+                    organizationId,
+                    null,
+                    "Sergiy",
+                    "Barber",
+                    "Senior barber",
+                    createdAtUtc));
+
+            await setupContext.SaveChangesAsync(
+                TestContext.Current.CancellationToken);
+
+            setupContext.EmployeeWorkingHours.Add(
+                EmployeeWorkingHours.Create(
+                    Guid.NewGuid(),
+                    organizationId,
+                    employeeId,
+                    DayOfWeek.Monday,
+                    new TimeOnly(9, 0),
+                    new TimeOnly(13, 0)));
+
+            await setupContext.SaveChangesAsync(
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var conflictingContext =
+            new BookingHubDbContext(options);
+
+        conflictingContext.EmployeeWorkingHours.Add(
+            EmployeeWorkingHours.Create(
+                Guid.NewGuid(),
+                organizationId,
+                employeeId,
+                DayOfWeek.Monday,
+                new TimeOnly(12, 0),
+                new TimeOnly(16, 0)));
+
+        var exception =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () =>
+                    ((IUnitOfWork)conflictingContext)
+                        .SaveChangesAsync(
+                            TestContext.Current.CancellationToken));
+
+        Assert.Contains(
+            "Working hours overlap",
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
 }
