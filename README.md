@@ -2,7 +2,7 @@
 
 Production-oriented multi-tenant CRM and booking backend built with ASP.NET Core and .NET 10.
 
-> Current implementation progress: approximately **96%** of the planned backend architecture and core platform scope.
+> Current implementation progress: approximately **97%** of the planned backend architecture and core platform scope.
 
 ## What is already implemented
 
@@ -42,6 +42,9 @@ The project currently includes:
 - RabbitMQ topic exchange publishing from the Worker;
 - publisher confirms before outbox messages are marked processed;
 - retry tracking for failed outbox messages;
+- authenticated SignalR booking hub;
+- RabbitMQ-to-SignalR realtime booking event bridge;
+- organization-scoped SignalR groups;
 - unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
 
 ## Architecture
@@ -297,10 +300,10 @@ Implemented now:
 
 - RabbitMQ;
 - Transactional Outbox;
+- SignalR;
 
 Planned as the project grows:
 
-- SignalR;
 - Redis;
 - Inbox/idempotent consumers;
 - Quartz.NET;
@@ -329,8 +332,8 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. add SignalR real-time booking updates;
-2. add Inbox/idempotent consumers and notification processing;
-3. add reporting/read models and background exports;
-4. add caching and search where justified;
-5. add observability and production deployment tooling incrementally.
+1. add Inbox/idempotent consumers and notification processing;
+2. add reporting/read models and background exports;
+3. add caching and search where justified;
+4. add observability and production deployment tooling;
+5. add Docker Compose and CI automation.

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using BookingHub.Api.Authorization;
 using BookingHub.Api.ErrorHandling;
+using BookingHub.Api.Realtime;
 using BookingHub.Application;
 using BookingHub.Domain.Organizations;
 using BookingHub.Infrastructure;
@@ -53,9 +54,32 @@ builder.Services
                     ClockSkew = TimeSpan.FromSeconds(30),
                     RoleClaimType = ClaimTypes.Role
                 };
+
+            options.Events =
+                new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken =
+                            context.Request.Query["access_token"];
+
+                        var path =
+                            context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            path.StartsWithSegments("/hubs/bookings"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                };
         });
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<BookingRealtimeConsumer>();
 
 builder.Services.AddSingleton<
     IAuthorizationHandler,
@@ -160,6 +184,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapHub<BookingsHub>("/hubs/bookings");
 
 app.Run();
 

@@ -13,8 +13,6 @@ public sealed class RabbitMqPublisher
     private readonly string _password;
     private readonly string _virtualHost;
     private readonly string _exchange;
-    private readonly string _queue;
-    private readonly string _bindingKey;
 
     private IConnection? _connection;
     private IChannel? _channel;
@@ -48,14 +46,6 @@ public sealed class RabbitMqPublisher
         _exchange =
             configuration["RabbitMq:Exchange"]
             ?? "bookinghub.events";
-
-        _queue =
-            configuration["RabbitMq:Queue"]
-            ?? "bookinghub.booking-events";
-
-        _bindingKey =
-            configuration["RabbitMq:BindingKey"]
-            ?? "booking.#";
     }
 
     public async Task PublishAsync(
@@ -132,23 +122,6 @@ public sealed class RabbitMqPublisher
             noWait: false,
             cancellationToken: cancellationToken);
 
-        await _channel.QueueDeclareAsync(
-            queue: _queue,
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: null,
-            passive: false,
-            noWait: false,
-            cancellationToken: cancellationToken);
-
-        await _channel.QueueBindAsync(
-            queue: _queue,
-            exchange: _exchange,
-            routingKey: _bindingKey,
-            arguments: null,
-            noWait: false,
-            cancellationToken: cancellationToken);
 
         return _channel;
     }
