@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using BookingHub.Api.Authorization;
 using BookingHub.Api.ErrorHandling;
 using BookingHub.Application;
 using BookingHub.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -52,7 +54,23 @@ builder.Services
                 };
         });
 
-builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddSingleton<
+    IAuthorizationHandler,
+    OrganizationAccessHandler>();
+
+builder.Services.AddAuthorization(
+    options =>
+        options.AddPolicy(
+            AuthorizationPolicies.OrganizationAccess,
+            policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(
+                    new OrganizationAccessRequirement());
+            }));
+
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 

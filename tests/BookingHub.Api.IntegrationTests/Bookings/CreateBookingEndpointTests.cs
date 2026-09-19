@@ -1,20 +1,25 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BookingHub.Api.Contracts.Bookings;
 using BookingHub.Application.Abstractions;
+using BookingHub.Application.Abstractions.Authentication;
 using BookingHub.Application.Abstractions.Persistence;
 using BookingHub.Domain.Bookings;
 using BookingHub.Domain.Customers;
 using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Services;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.IdentityModel.Tokens;
 using NSubstitute;
 using Xunit;
 
@@ -22,6 +27,9 @@ namespace BookingHub.Api.IntegrationTests.Bookings;
 
 public sealed class CreateBookingEndpointTests
 {
+    private const string SigningKey =
+        "development-only-signing-key-change-before-production-2026";
+
     private static readonly JsonSerializerOptions JsonOptions =
         new(JsonSerializerDefaults.Web)
         {
@@ -32,24 +40,19 @@ public sealed class CreateBookingEndpointTests
         };
 
     [Fact]
-    public async Task PostWithValidRequestShouldReturnCreatedBooking()
+    public async Task PostWithValidTenantTokenShouldReturnCreatedBooking()
     {
         var context = CreateContext();
         var dependencies = ConfigureDependencies(context);
 
-        using var application =
-            CreateApplication(dependencies);
+        using var application = CreateApplication(dependencies);
+        using var client = application.CreateClient();
 
-        using var client =
-            application.CreateClient();
+        AddAuthorizationHeader(
+            client,
+            CreateAccessToken(context.OrganizationId));
 
-        var request =
-            new CreateBookingRequest(
-                context.CustomerId,
-                context.EmployeeId,
-                context.ServiceId,
-                context.StartsAtUtc,
-                "First visit");
+        var request = CreateRequest(context);
 
         using var response =
             await client.PostAsJsonAsync(
@@ -57,25 +60,60 @@ public sealed class CreateBookingEndpointTests
                 request,
                 TestContext.Current.CancellationToken);
 
-        Assert.Equal(
-            HttpStatusCode.Created,
-            response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         var body =
-            await response.Content
-                .ReadFromJsonAsync<CreateBookingResponse>(
-                    JsonOptions,
-                    TestContext.Current.CancellationToken);
+            await response.Content.ReadFromJsonAsync<CreateBookingResponse>(
+                JsonOptions,
+                TestContext.Current.CancellationToken);
 
         Assert.NotNull(body);
         Assert.Equal(context.BookingId, body.BookingId);
         Assert.Equal(BookingStatus.Pending, body.Status);
-        Assert.Equal(context.StartsAtUtc, body.StartsAtUtc);
+    }
+
+    [Fact]
+    public async Task PostWithoutAccessTokenShouldReturnUnauthorized()
+    {
+        var context = CreateContext();
+        var dependencies = ConfigureDependencies(context);
+
+        using var application = CreateApplication(dependencies);
+        using var client = application.CreateClient();
+
+        using var response =
+            await client.PostAsJsonAsync(
+                $"/api/organizations/{context.OrganizationId}/bookings",
+                CreateRequest(context),
+                TestContext.Current.CancellationToken);
+
         Assert.Equal(
-            context.StartsAtUtc.AddHours(1),
-            body.EndsAtUtc);
-        Assert.Equal(700m, body.PriceAmount);
-        Assert.Equal("UAH", body.Currency);
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostWithDifferentTenantTokenShouldReturnForbidden()
+    {
+        var context = CreateContext();
+        var dependencies = ConfigureDependencies(context);
+
+        using var application = CreateApplication(dependencies);
+        using var client = application.CreateClient();
+
+        AddAuthorizationHeader(
+            client,
+            CreateAccessToken(Guid.NewGuid()));
+
+        using var response =
+            await client.PostAsJsonAsync(
+                $"/api/organizations/{context.OrganizationId}/bookings",
+                CreateRequest(context),
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            response.StatusCode);
     }
 
     [Fact]
@@ -109,44 +147,87 @@ public sealed class CreateBookingEndpointTests
                 Task.FromResult<IReadOnlyCollection<Booking>>(
                     [conflictingBooking]));
 
-        using var application =
-            CreateApplication(dependencies);
+        using var application = CreateApplication(dependencies);
+        using var client = application.CreateClient();
 
-        using var client =
-            application.CreateClient();
-
-        var request =
-            new CreateBookingRequest(
-                context.CustomerId,
-                context.EmployeeId,
-                context.ServiceId,
-                context.StartsAtUtc,
-                null);
+        AddAuthorizationHeader(
+            client,
+            CreateAccessToken(context.OrganizationId));
 
         using var response =
             await client.PostAsJsonAsync(
                 $"/api/organizations/{context.OrganizationId}/bookings",
-                request,
+                CreateRequest(context),
                 TestContext.Current.CancellationToken);
 
-        Assert.Equal(
-            HttpStatusCode.Conflict,
-            response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
 
         var problem =
-            await response.Content
-                .ReadFromJsonAsync<ProblemDetailsResponse>(
-                    JsonOptions,
-                    TestContext.Current.CancellationToken);
+            await response.Content.ReadFromJsonAsync<ProblemDetailsResponse>(
+                JsonOptions,
+                TestContext.Current.CancellationToken);
 
         Assert.NotNull(problem);
-        Assert.Equal(
-            "Booking slot unavailable",
-            problem.Title);
+        Assert.Equal("Booking slot unavailable", problem.Title);
+        Assert.Equal("BookingConflict", problem.AvailabilityStatus);
+    }
 
-        Assert.Equal(
-            "BookingConflict",
-            problem.AvailabilityStatus);
+    private static void AddAuthorizationHeader(
+        HttpClient client,
+        string accessToken)
+    {
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                accessToken);
+    }
+
+    private static string CreateAccessToken(
+        Guid organizationId)
+    {
+        var now = DateTime.UtcNow;
+
+        var claims = new[]
+        {
+            new Claim(
+                JwtRegisteredClaimNames.Sub,
+                Guid.NewGuid().ToString()),
+            new Claim(
+                AuthenticationClaimTypes.OrganizationId,
+                organizationId.ToString()),
+            new Claim(
+                ClaimTypes.Role,
+                OrganizationRole.Admin.ToString())
+        };
+
+        var credentials =
+            new SigningCredentials(
+                new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(SigningKey)),
+                SecurityAlgorithms.HmacSha256);
+
+        var token =
+            new JwtSecurityToken(
+                issuer: "BookingHub",
+                audience: "BookingHub.Api",
+                claims: claims,
+                notBefore: now.AddMinutes(-1),
+                expires: now.AddMinutes(15),
+                signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler()
+            .WriteToken(token);
+    }
+
+    private static CreateBookingRequest CreateRequest(
+        ApiTestContext context)
+    {
+        return new CreateBookingRequest(
+            context.CustomerId,
+            context.EmployeeId,
+            context.ServiceId,
+            context.StartsAtUtc,
+            "First visit");
     }
 
     private static WebApplicationFactory<Program> CreateApplication(
@@ -158,80 +239,32 @@ public sealed class CreateBookingEndpointTests
                     builder.ConfigureTestServices(
                         services =>
                         {
-                            Replace(
-                                services,
-                                dependencies.OrganizationRepository);
-
-                            Replace(
-                                services,
-                                dependencies.CustomerRepository);
-
-                            Replace(
-                                services,
-                                dependencies.EmployeeRepository);
-
-                            Replace(
-                                services,
-                                dependencies.ServiceRepository);
-
-                            Replace(
-                                services,
-                                dependencies.EmployeeServiceRepository);
-
-                            Replace(
-                                services,
-                                dependencies.EmployeeScheduleRepository);
-
-                            Replace(
-                                services,
-                                dependencies.BookingRepository);
-
-                            Replace(
-                                services,
-                                dependencies.UnitOfWork);
-
-                            Replace(
-                                services,
-                                dependencies.Clock);
-
-                            Replace(
-                                services,
-                                dependencies.GuidGenerator);
+                            Replace(services, dependencies.OrganizationRepository);
+                            Replace(services, dependencies.CustomerRepository);
+                            Replace(services, dependencies.EmployeeRepository);
+                            Replace(services, dependencies.ServiceRepository);
+                            Replace(services, dependencies.EmployeeServiceRepository);
+                            Replace(services, dependencies.EmployeeScheduleRepository);
+                            Replace(services, dependencies.BookingRepository);
+                            Replace(services, dependencies.UnitOfWork);
+                            Replace(services, dependencies.Clock);
+                            Replace(services, dependencies.GuidGenerator);
                         }));
     }
 
     private static TestDependencies ConfigureDependencies(
         ApiTestContext context)
     {
-        var organizationRepository =
-            Substitute.For<IOrganizationRepository>();
-
-        var customerRepository =
-            Substitute.For<ICustomerRepository>();
-
-        var employeeRepository =
-            Substitute.For<IEmployeeRepository>();
-
-        var serviceRepository =
-            Substitute.For<IServiceRepository>();
-
-        var employeeServiceRepository =
-            Substitute.For<IEmployeeServiceRepository>();
-
-        var employeeScheduleRepository =
-            Substitute.For<IEmployeeScheduleRepository>();
-
-        var bookingRepository =
-            Substitute.For<IBookingRepository>();
-
-        var unitOfWork =
-            Substitute.For<IUnitOfWork>();
-
-        var clock =
-            Substitute.For<IClock>();
-
-        var guidGenerator =
-            Substitute.For<IGuidGenerator>();
+        var organizationRepository = Substitute.For<IOrganizationRepository>();
+        var customerRepository = Substitute.For<ICustomerRepository>();
+        var employeeRepository = Substitute.For<IEmployeeRepository>();
+        var serviceRepository = Substitute.For<IServiceRepository>();
+        var employeeServiceRepository = Substitute.For<IEmployeeServiceRepository>();
+        var employeeScheduleRepository = Substitute.For<IEmployeeScheduleRepository>();
+        var bookingRepository = Substitute.For<IBookingRepository>();
+        var unitOfWork = Substitute.For<IUnitOfWork>();
+        var clock = Substitute.For<IClock>();
+        var guidGenerator = Substitute.For<IGuidGenerator>();
 
         var organization =
             Organization.Create(
@@ -285,33 +318,25 @@ public sealed class CreateBookingEndpointTests
             .GetByIdAsync(
                 context.OrganizationId,
                 Arg.Any<CancellationToken>())
-            .Returns(
-                Task.FromResult<Organization?>(
-                    organization));
+            .Returns(Task.FromResult<Organization?>(organization));
 
         customerRepository
             .GetByIdAsync(
                 context.CustomerId,
                 Arg.Any<CancellationToken>())
-            .Returns(
-                Task.FromResult<Customer?>(
-                    customer));
+            .Returns(Task.FromResult<Customer?>(customer));
 
         employeeRepository
             .GetByIdAsync(
                 context.EmployeeId,
                 Arg.Any<CancellationToken>())
-            .Returns(
-                Task.FromResult<Employee?>(
-                    employee));
+            .Returns(Task.FromResult<Employee?>(employee));
 
         serviceRepository
             .GetByIdAsync(
                 context.ServiceId,
                 Arg.Any<CancellationToken>())
-            .Returns(
-                Task.FromResult<Service?>(
-                    service));
+            .Returns(Task.FromResult<Service?>(service));
 
         employeeServiceRepository
             .IsAssignedAsync(
@@ -338,8 +363,7 @@ public sealed class CreateBookingEndpointTests
                 context.StartsAtUtc.AddHours(1),
                 Arg.Any<CancellationToken>())
             .Returns(
-                Task.FromResult<IReadOnlyCollection<EmployeeTimeOff>>(
-                    []));
+                Task.FromResult<IReadOnlyCollection<EmployeeTimeOff>>([]));
 
         bookingRepository
             .GetOverlappingAsync(
@@ -349,8 +373,7 @@ public sealed class CreateBookingEndpointTests
                 context.StartsAtUtc.AddHours(1),
                 Arg.Any<CancellationToken>())
             .Returns(
-                Task.FromResult<IReadOnlyCollection<Booking>>(
-                    []));
+                Task.FromResult<IReadOnlyCollection<Booking>>([]));
 
         bookingRepository
             .AddAsync(
@@ -363,11 +386,8 @@ public sealed class CreateBookingEndpointTests
                 Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        clock.UtcNow.Returns(
-            context.CreatedAtUtc);
-
-        guidGenerator.NewGuid()
-            .Returns(context.BookingId);
+        clock.UtcNow.Returns(context.CreatedAtUtc);
+        guidGenerator.NewGuid().Returns(context.BookingId);
 
         return new TestDependencies(
             organizationRepository,

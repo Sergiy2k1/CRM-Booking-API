@@ -1,70 +1,40 @@
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Authentication;
 using BookingHub.Application.Abstractions.Persistence;
-using BookingHub.Application.Authentication.Login;
+using BookingHub.Application.Authentication.RefreshSession;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Users;
 using NSubstitute;
 using Xunit;
 
-namespace BookingHub.Application.UnitTests.Authentication.Login;
+namespace BookingHub.Application.UnitTests.Authentication.RefreshSession;
 
-public sealed class LoginHandlerTests
+public sealed class RefreshSessionHandlerTests
 {
     [Fact]
-    public async Task HandleWithValidCredentialsShouldReturnTokens()
+    public async Task HandleWithActiveRefreshTokenShouldRotateToken()
     {
         var context = CreateContext();
         var dependencies = ConfigureDependencies(context);
-
-        dependencies.PasswordHasher
-            .Verify("password-hash", "Password123!")
-            .Returns(true);
-
-        dependencies.AccessTokenProvider
-            .Create(
-                context.UserId,
-                context.OrganizationId,
-                "sergiy@example.com",
-                OrganizationRole.Admin,
-                context.UtcNow)
-            .Returns(
-                new AccessToken(
-                    "access-token",
-                    context.UtcNow.AddMinutes(15)));
-
-        dependencies.RefreshTokenProvider
-            .Generate(context.UtcNow)
-            .Returns(
-                new GeneratedRefreshToken(
-                    "refresh-token",
-                    "refresh-token-hash",
-                    context.UtcNow.AddDays(30)));
-
         var handler = CreateHandler(dependencies);
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    " Sergiy@Example.com ",
-                    "Password123!",
-                    context.OrganizationId),
+                new RefreshSessionCommand("old-refresh-token"),
                 TestContext.Current.CancellationToken);
 
-        Assert.Equal("access-token", result.AccessToken);
-        Assert.Equal("refresh-token", result.RefreshToken);
-        Assert.Equal(context.UserId, result.UserId);
-        Assert.Equal(context.OrganizationId, result.OrganizationId);
-        Assert.Equal(OrganizationRole.Admin, result.Role);
+        Assert.Equal("new-access-token", result.AccessToken);
+        Assert.Equal("new-refresh-token", result.RefreshToken);
+        Assert.Equal(context.ReplacementTokenId, context.CurrentToken.ReplacedByTokenId);
+        Assert.Equal(context.UtcNow, context.CurrentToken.RevokedAtUtc);
 
         await dependencies.RefreshTokenRepository
             .Received(1)
             .AddAsync(
                 Arg.Is<RefreshToken>(
                     token =>
-                        token.UserId == context.UserId &&
-                        token.OrganizationId == context.OrganizationId &&
-                        token.TokenHash == "refresh-token-hash"),
+                        token.Id == context.ReplacementTokenId &&
+                        token.TokenHash == "new-refresh-token-hash"),
                 TestContext.Current.CancellationToken);
 
         await dependencies.UnitOfWork
@@ -74,23 +44,19 @@ public sealed class LoginHandlerTests
     }
 
     [Fact]
-    public async Task HandleWithInvalidPasswordShouldThrowInvalidCredentialsException()
+    public async Task HandleWithRevokedRefreshTokenShouldThrowInvalidRefreshTokenException()
     {
         var context = CreateContext();
+
+        context.CurrentToken.Revoke(
+            context.UtcNow.AddMinutes(-1));
+
         var dependencies = ConfigureDependencies(context);
-
-        dependencies.PasswordHasher
-            .Verify("password-hash", "WrongPassword")
-            .Returns(false);
-
         var handler = CreateHandler(dependencies);
 
-        await Assert.ThrowsAsync<InvalidCredentialsException>(
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(
             () => handler.HandleAsync(
-                new LoginCommand(
-                    "sergiy@example.com",
-                    "WrongPassword",
-                    context.OrganizationId),
+                new RefreshSessionCommand("old-refresh-token"),
                 TestContext.Current.CancellationToken));
 
         await dependencies.RefreshTokenRepository
@@ -100,63 +66,21 @@ public sealed class LoginHandlerTests
                 Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task HandleWithRemovedMembershipShouldThrowInvalidCredentialsException()
-    {
-        var context = CreateContext();
-        var dependencies = ConfigureDependencies(context);
-
-        dependencies.PasswordHasher
-            .Verify("password-hash", "Password123!")
-            .Returns(true);
-
-        var removedMembership =
-            OrganizationMember.Create(
-                Guid.NewGuid(),
-                context.OrganizationId,
-                context.UserId,
-                OrganizationRole.Admin,
-                context.UtcNow);
-
-        removedMembership.Remove(
-            context.UtcNow.AddMinutes(1));
-
-        dependencies.OrganizationMemberRepository
-            .GetByOrganizationAndUserAsync(
-                context.OrganizationId,
-                context.UserId,
-                Arg.Any<CancellationToken>())
-            .Returns(
-                Task.FromResult<OrganizationMember?>(
-                    removedMembership));
-
-        var handler = CreateHandler(dependencies);
-
-        await Assert.ThrowsAsync<InvalidCredentialsException>(
-            () => handler.HandleAsync(
-                new LoginCommand(
-                    "sergiy@example.com",
-                    "Password123!",
-                    context.OrganizationId),
-                TestContext.Current.CancellationToken));
-    }
-
     private static TestDependencies ConfigureDependencies(
-        LoginTestContext context)
+        RefreshTestContext context)
     {
-        var userRepository = Substitute.For<IUserRepository>();
+        var refreshTokenRepository =
+            Substitute.For<IRefreshTokenRepository>();
+        var userRepository =
+            Substitute.For<IUserRepository>();
         var organizationMemberRepository =
             Substitute.For<IOrganizationMemberRepository>();
         var organizationRepository =
             Substitute.For<IOrganizationRepository>();
-        var passwordHasher =
-            Substitute.For<IPasswordHasher>();
         var accessTokenProvider =
             Substitute.For<IAccessTokenProvider>();
         var refreshTokenProvider =
             Substitute.For<IRefreshTokenProvider>();
-        var refreshTokenRepository =
-            Substitute.For<IRefreshTokenRepository>();
         var guidGenerator =
             Substitute.For<IGuidGenerator>();
         var clock =
@@ -189,9 +113,21 @@ public sealed class LoginHandlerTests
                 OrganizationRole.Admin,
                 context.UtcNow);
 
+        refreshTokenProvider
+            .Hash("old-refresh-token")
+            .Returns("old-refresh-token-hash");
+
+        refreshTokenRepository
+            .GetByTokenHashAsync(
+                "old-refresh-token-hash",
+                Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult<RefreshToken?>(
+                    context.CurrentToken));
+
         userRepository
-            .GetByNormalizedEmailAsync(
-                "SERGIY@EXAMPLE.COM",
+            .GetByIdAsync(
+                context.UserId,
                 Arg.Any<CancellationToken>())
             .Returns(
                 Task.FromResult<User?>(user));
@@ -211,8 +147,28 @@ public sealed class LoginHandlerTests
             .Returns(
                 Task.FromResult<Organization?>(organization));
 
+        accessTokenProvider
+            .Create(
+                context.UserId,
+                context.OrganizationId,
+                "sergiy@example.com",
+                OrganizationRole.Admin,
+                context.UtcNow)
+            .Returns(
+                new AccessToken(
+                    "new-access-token",
+                    context.UtcNow.AddMinutes(15)));
+
+        refreshTokenProvider
+            .Generate(context.UtcNow)
+            .Returns(
+                new GeneratedRefreshToken(
+                    "new-refresh-token",
+                    "new-refresh-token-hash",
+                    context.UtcNow.AddDays(30)));
+
         guidGenerator.NewGuid()
-            .Returns(context.RefreshTokenId);
+            .Returns(context.ReplacementTokenId);
 
         clock.UtcNow.Returns(context.UtcNow);
 
@@ -228,40 +184,38 @@ public sealed class LoginHandlerTests
             .Returns(Task.CompletedTask);
 
         return new TestDependencies(
+            refreshTokenRepository,
             userRepository,
             organizationMemberRepository,
             organizationRepository,
-            passwordHasher,
             accessTokenProvider,
             refreshTokenProvider,
-            refreshTokenRepository,
             guidGenerator,
             clock,
             unitOfWork);
     }
 
-    private static LoginHandler CreateHandler(
+    private static RefreshSessionHandler CreateHandler(
         TestDependencies dependencies)
     {
-        return new LoginHandler(
+        return new RefreshSessionHandler(
+            dependencies.RefreshTokenRepository,
             dependencies.UserRepository,
             dependencies.OrganizationMemberRepository,
             dependencies.OrganizationRepository,
-            dependencies.PasswordHasher,
             dependencies.AccessTokenProvider,
             dependencies.RefreshTokenProvider,
-            dependencies.RefreshTokenRepository,
             dependencies.GuidGenerator,
             dependencies.Clock,
             dependencies.UnitOfWork);
     }
 
-    private static LoginTestContext CreateContext()
+    private static RefreshTestContext CreateContext()
     {
-        return new LoginTestContext(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            Guid.NewGuid(),
+        var userId = Guid.NewGuid();
+        var organizationId = Guid.NewGuid();
+
+        var utcNow =
             new DateTimeOffset(
                 2026,
                 9,
@@ -269,23 +223,39 @@ public sealed class LoginHandlerTests
                 16,
                 0,
                 0,
-                TimeSpan.Zero));
+                TimeSpan.Zero);
+
+        var currentToken =
+            RefreshToken.Create(
+                Guid.NewGuid(),
+                userId,
+                organizationId,
+                "old-refresh-token-hash",
+                utcNow.AddDays(30),
+                utcNow.AddDays(-1));
+
+        return new RefreshTestContext(
+            userId,
+            organizationId,
+            Guid.NewGuid(),
+            utcNow,
+            currentToken);
     }
 
-    private sealed record LoginTestContext(
+    private sealed record RefreshTestContext(
         Guid UserId,
         Guid OrganizationId,
-        Guid RefreshTokenId,
-        DateTimeOffset UtcNow);
+        Guid ReplacementTokenId,
+        DateTimeOffset UtcNow,
+        RefreshToken CurrentToken);
 
     private sealed record TestDependencies(
+        IRefreshTokenRepository RefreshTokenRepository,
         IUserRepository UserRepository,
         IOrganizationMemberRepository OrganizationMemberRepository,
         IOrganizationRepository OrganizationRepository,
-        IPasswordHasher PasswordHasher,
         IAccessTokenProvider AccessTokenProvider,
         IRefreshTokenProvider RefreshTokenProvider,
-        IRefreshTokenRepository RefreshTokenRepository,
         IGuidGenerator GuidGenerator,
         IClock Clock,
         IUnitOfWork UnitOfWork);

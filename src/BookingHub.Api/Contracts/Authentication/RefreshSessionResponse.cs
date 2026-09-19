@@ -2,7 +2,7 @@ using BookingHub.Domain.Organizations;
 
 namespace BookingHub.Api.Contracts.Authentication;
 
-public sealed record LoginResponse(
+public sealed record RefreshSessionResponse(
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAtUtc,
     string RefreshToken,

@@ -1,10 +1,13 @@
+using BookingHub.Api.Authorization;
 using BookingHub.Api.Contracts.Bookings;
 using BookingHub.Application.Bookings.CreateBooking;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BookingHub.Api.Controllers;
 
 [ApiController]
+[Authorize(Policy = AuthorizationPolicies.OrganizationAccess)]
 [Route("api/organizations/{organizationId:guid}/bookings")]
 public sealed class BookingsController : ControllerBase
 {
@@ -21,6 +24,10 @@ public sealed class BookingsController : ControllerBase
         StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(
+        StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(

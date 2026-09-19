@@ -1,5 +1,6 @@
 using BookingHub.Api.Contracts.Authentication;
 using BookingHub.Application.Authentication.Login;
+using BookingHub.Application.Authentication.RefreshSession;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +11,14 @@ namespace BookingHub.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly LoginHandler _loginHandler;
+    private readonly RefreshSessionHandler _refreshSessionHandler;
 
-    public AuthController(LoginHandler loginHandler)
+    public AuthController(
+        LoginHandler loginHandler,
+        RefreshSessionHandler refreshSessionHandler)
     {
         _loginHandler = loginHandler;
+        _refreshSessionHandler = refreshSessionHandler;
     }
 
     [AllowAnonymous]
@@ -39,7 +44,38 @@ public sealed class AuthController : ControllerBase
         return Ok(
             new LoginResponse(
                 result.AccessToken,
-                result.ExpiresAtUtc,
+                result.AccessTokenExpiresAtUtc,
+                result.RefreshToken,
+                result.RefreshTokenExpiresAtUtc,
+                result.UserId,
+                result.OrganizationId,
+                result.Role));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    [ProducesResponseType<RefreshSessionResponse>(
+        StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(
+        StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(
+        StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<RefreshSessionResponse>> Refresh(
+        RefreshSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result =
+            await _refreshSessionHandler.HandleAsync(
+                new RefreshSessionCommand(
+                    request.RefreshToken),
+                cancellationToken);
+
+        return Ok(
+            new RefreshSessionResponse(
+                result.AccessToken,
+                result.AccessTokenExpiresAtUtc,
+                result.RefreshToken,
+                result.RefreshTokenExpiresAtUtc,
                 result.UserId,
                 result.OrganizationId,
                 result.Role));
