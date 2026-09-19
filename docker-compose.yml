@@ -69,6 +69,7 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    stop_grace_period: 35s
     restart: unless-stopped
 
   worker:
@@ -106,6 +107,7 @@ services:
         condition: service_started
       otel-collector:
         condition: service_started
+    stop_grace_period: 35s
     restart: unless-stopped
 
   tempo:
