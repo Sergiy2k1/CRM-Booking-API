@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using BookingHub.Api.Authorization;
 using BookingHub.Api.ErrorHandling;
 using BookingHub.Api.Realtime;
+using BookingHub.Api.Observability;
 using BookingHub.Application;
 using BookingHub.Domain.Organizations;
 using BookingHub.Infrastructure;
@@ -18,6 +19,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
+
+builder.Services.AddApiObservability(
+    builder.Configuration);
 
 var jwtIssuer =
     builder.Configuration["Jwt:Issuer"]
