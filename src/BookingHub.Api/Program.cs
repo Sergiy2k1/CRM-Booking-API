@@ -2,6 +2,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using BookingHub.Api.Authorization;
+using BookingHub.Api.Configuration;
+using BookingHub.Api.Health;
 using BookingHub.Api.ErrorHandling;
 using BookingHub.Api.Realtime;
 using BookingHub.Api.Observability;
@@ -15,6 +17,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+StartupConfigurationValidator.Validate(
+    builder.Configuration,
+    builder.Environment);
 
 builder.Services
     .AddApplication()
@@ -192,7 +198,20 @@ builder.Services
                 new JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
-builder.Services.AddHealthChecks();
+
+builder.Services
+    .AddHealthChecks()
+    .AddCheck<DatabaseReadinessHealthCheck>(
+        "postgresql",
+        tags:
+        [
+            "ready"
+        ]);
+
+builder.Services.Configure<HostOptions>(
+    options =>
+        options.ShutdownTimeout =
+            TimeSpan.FromSeconds(30));
 
 var app = builder.Build();
 
@@ -221,7 +240,34 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+
+app.MapHealthChecks(
+    "/health/live",
+    new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
+
+app.MapHealthChecks(
+    "/health/ready",
+    new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate =
+            registration =>
+                registration.Tags.Contains(
+                    "ready")
+    });
+
+app.MapHealthChecks(
+    "/health",
+    new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate =
+            registration =>
+                registration.Tags.Contains(
+                    "ready")
+    });
+
 app.MapHub<BookingsHub>("/hubs/bookings");
 
 app.Run();
