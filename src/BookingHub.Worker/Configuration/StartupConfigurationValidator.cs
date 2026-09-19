@@ -100,7 +100,7 @@ internal static class StartupConfigurationValidator
 
     private static void ValidateOpenTelemetry(
         IConfiguration configuration,
-        ICollection<string> errors)
+        List<string> errors)
     {
         if (!configuration.GetValue<bool>(
                 "OpenTelemetry:Enabled"))
@@ -124,7 +124,7 @@ internal static class StartupConfigurationValidator
     private static void Require(
         string? value,
         string key,
-        ICollection<string> errors)
+        List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -136,7 +136,7 @@ internal static class StartupConfigurationValidator
     private static void RequirePositiveInt(
         string? value,
         string key,
-        ICollection<string> errors)
+        List<string> errors)
     {
         if (!int.TryParse(
                 value,
