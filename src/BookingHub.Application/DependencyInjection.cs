@@ -1,6 +1,10 @@
 using BookingHub.Application.Authentication.Login;
 using BookingHub.Application.Authentication.RefreshSession;
+using BookingHub.Application.Bookings.ChangeBookingStatus;
 using BookingHub.Application.Bookings.CreateBooking;
+using BookingHub.Application.Bookings.GetBooking;
+using BookingHub.Application.Bookings.ListBookings;
+using BookingHub.Application.Bookings.RescheduleBooking;
 using BookingHub.Application.Customers.ArchiveCustomer;
 using BookingHub.Application.Customers.CreateCustomer;
 using BookingHub.Application.Customers.GetCustomer;
@@ -35,6 +39,11 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddScoped<CreateBookingHandler>();
+        services.AddScoped<GetBookingHandler>();
+        services.AddScoped<ListBookingsHandler>();
+        services.AddScoped<ChangeBookingStatusHandler>();
+        services.AddScoped<RescheduleBookingHandler>();
+
         services.AddScoped<LoginHandler>();
         services.AddScoped<RefreshSessionHandler>();
 
