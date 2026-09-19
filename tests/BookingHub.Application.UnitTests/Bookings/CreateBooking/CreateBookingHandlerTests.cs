@@ -213,7 +213,8 @@ public sealed class CreateBookingHandlerTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => handler.HandleAsync(
-                CreateCommand(context)));
+                CreateCommand(context),
+                TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -234,7 +235,8 @@ public sealed class CreateBookingHandlerTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => handler.HandleAsync(
-                CreateCommand(context)));
+                CreateCommand(context),
+                TestContext.Current.CancellationToken));
 
         await _bookingRepository
             .DidNotReceive()
