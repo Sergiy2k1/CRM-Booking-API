@@ -29,6 +29,35 @@ internal sealed class EmployeeScheduleRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<bool> HasWorkingHoursOverlapAsync(
+        Guid organizationId,
+        Guid employeeId,
+        DayOfWeek dayOfWeek,
+        TimeOnly startTime,
+        TimeOnly endTime,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.EmployeeWorkingHours
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.OrganizationId == organizationId &&
+                    x.EmployeeId == employeeId &&
+                    x.DayOfWeek == dayOfWeek &&
+                    x.StartTime < endTime &&
+                    startTime < x.EndTime,
+                cancellationToken);
+    }
+
+    public async Task AddWorkingHoursAsync(
+        EmployeeWorkingHours workingHours,
+        CancellationToken cancellationToken = default)
+    {
+        await _dbContext.EmployeeWorkingHours.AddAsync(
+            workingHours,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<EmployeeTimeOff>> GetTimeOffAsync(
         Guid organizationId,
         Guid employeeId,
@@ -45,5 +74,29 @@ internal sealed class EmployeeScheduleRepository
                     x.StartsAtUtc < endsAtUtc &&
                     startsAtUtc < x.EndsAtUtc)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<EmployeeTimeOff?> GetTrackedTimeOffByIdAsync(
+        Guid organizationId,
+        Guid employeeId,
+        Guid timeOffId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.EmployeeTimeOffPeriods
+            .SingleOrDefaultAsync(
+                x =>
+                    x.OrganizationId == organizationId &&
+                    x.EmployeeId == employeeId &&
+                    x.Id == timeOffId,
+                cancellationToken);
+    }
+
+    public async Task AddTimeOffAsync(
+        EmployeeTimeOff timeOff,
+        CancellationToken cancellationToken = default)
+    {
+        await _dbContext.EmployeeTimeOffPeriods.AddAsync(
+            timeOff,
+            cancellationToken);
     }
 }
