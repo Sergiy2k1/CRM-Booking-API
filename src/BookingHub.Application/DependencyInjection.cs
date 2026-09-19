@@ -1,4 +1,5 @@
 using BookingHub.Application.Authentication.Login;
+using BookingHub.Application.Authentication.RefreshSession;
 using BookingHub.Application.Bookings.CreateBooking;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,6 +12,7 @@ public static class DependencyInjection
     {
         services.AddScoped<CreateBookingHandler>();
         services.AddScoped<LoginHandler>();
+        services.AddScoped<RefreshSessionHandler>();
 
         return services;
     }

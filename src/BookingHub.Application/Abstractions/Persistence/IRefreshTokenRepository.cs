@@ -2,13 +2,13 @@ using BookingHub.Domain.Users;
 
 namespace BookingHub.Application.Abstractions.Persistence;
 
-public interface IUserRepository
+public interface IRefreshTokenRepository
 {
-    Task<User?> GetByIdAsync(
-        Guid id,
+    Task<RefreshToken?> GetByTokenHashAsync(
+        string tokenHash,
         CancellationToken cancellationToken = default);
 
-    Task<User?> GetByNormalizedEmailAsync(
-        string normalizedEmail,
+    Task AddAsync(
+        RefreshToken refreshToken,
         CancellationToken cancellationToken = default);
 }

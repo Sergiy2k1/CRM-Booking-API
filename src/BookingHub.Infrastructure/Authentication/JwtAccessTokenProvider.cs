@@ -71,7 +71,7 @@ internal sealed class JwtAccessTokenProvider : IAccessTokenProvider
                 JwtRegisteredClaimNames.Email,
                 email),
             new Claim(
-                "organization_id",
+                AuthenticationClaimTypes.OrganizationId,
                 organizationId.ToString()),
             new Claim(
                 ClaimTypes.Role,

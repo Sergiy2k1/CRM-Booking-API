@@ -1,8 +1,8 @@
 using BookingHub.Domain.Organizations;
 
-namespace BookingHub.Application.Authentication.Login;
+namespace BookingHub.Application.Authentication.RefreshSession;
 
-public sealed record LoginResult(
+public sealed record RefreshSessionResult(
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAtUtc,
     string RefreshToken,

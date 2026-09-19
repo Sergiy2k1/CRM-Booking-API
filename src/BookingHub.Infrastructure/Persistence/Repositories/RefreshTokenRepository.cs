@@ -4,35 +4,33 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookingHub.Infrastructure.Persistence.Repositories;
 
-internal sealed class UserRepository : IUserRepository
+internal sealed class RefreshTokenRepository
+    : IRefreshTokenRepository
 {
     private readonly BookingHubDbContext _dbContext;
 
-    public UserRepository(
+    public RefreshTokenRepository(
         BookingHubDbContext dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public Task<User?> GetByIdAsync(
-        Guid id,
+    public Task<RefreshToken?> GetByTokenHashAsync(
+        string tokenHash,
         CancellationToken cancellationToken = default)
     {
-        return _dbContext.Users
-            .AsNoTracking()
+        return _dbContext.RefreshTokens
             .SingleOrDefaultAsync(
-                x => x.Id == id,
+                x => x.TokenHash == tokenHash,
                 cancellationToken);
     }
 
-    public Task<User?> GetByNormalizedEmailAsync(
-        string normalizedEmail,
+    public async Task AddAsync(
+        RefreshToken refreshToken,
         CancellationToken cancellationToken = default)
     {
-        return _dbContext.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                x => x.NormalizedEmail == normalizedEmail,
-                cancellationToken);
+        await _dbContext.RefreshTokens.AddAsync(
+            refreshToken,
+            cancellationToken);
     }
 }

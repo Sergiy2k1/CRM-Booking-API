@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddSingleton<IGuidGenerator, GuidGenerator>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IAccessTokenProvider, JwtAccessTokenProvider>();
+        services.AddSingleton<IRefreshTokenProvider, RefreshTokenProvider>();
 
         return services;
     }

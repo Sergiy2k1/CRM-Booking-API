@@ -28,6 +28,9 @@ public sealed class BookingHubDbContext
     public DbSet<User> Users =>
         Set<User>();
 
+    public DbSet<RefreshToken> RefreshTokens =>
+        Set<RefreshToken>();
+
     public DbSet<Customer> Customers =>
         Set<Customer>();
 

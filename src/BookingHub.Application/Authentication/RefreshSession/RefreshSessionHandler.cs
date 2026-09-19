@@ -4,100 +4,101 @@ using BookingHub.Application.Abstractions.Persistence;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Users;
 
-namespace BookingHub.Application.Authentication.Login;
+namespace BookingHub.Application.Authentication.RefreshSession;
 
-public sealed class LoginHandler
+public sealed class RefreshSessionHandler
 {
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUserRepository _userRepository;
     private readonly IOrganizationMemberRepository _organizationMemberRepository;
     private readonly IOrganizationRepository _organizationRepository;
-    private readonly IPasswordHasher _passwordHasher;
     private readonly IAccessTokenProvider _accessTokenProvider;
     private readonly IRefreshTokenProvider _refreshTokenProvider;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IGuidGenerator _guidGenerator;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
-    public LoginHandler(
+    public RefreshSessionHandler(
+        IRefreshTokenRepository refreshTokenRepository,
         IUserRepository userRepository,
         IOrganizationMemberRepository organizationMemberRepository,
         IOrganizationRepository organizationRepository,
-        IPasswordHasher passwordHasher,
         IAccessTokenProvider accessTokenProvider,
         IRefreshTokenProvider refreshTokenProvider,
-        IRefreshTokenRepository refreshTokenRepository,
         IGuidGenerator guidGenerator,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
+        _refreshTokenRepository = refreshTokenRepository;
         _userRepository = userRepository;
         _organizationMemberRepository = organizationMemberRepository;
         _organizationRepository = organizationRepository;
-        _passwordHasher = passwordHasher;
         _accessTokenProvider = accessTokenProvider;
         _refreshTokenProvider = refreshTokenProvider;
-        _refreshTokenRepository = refreshTokenRepository;
         _guidGenerator = guidGenerator;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<LoginResult> HandleAsync(
-        LoginCommand command,
+    public async Task<RefreshSessionResult> HandleAsync(
+        RefreshSessionCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        ArgumentException.ThrowIfNullOrWhiteSpace(command.Email);
-        ArgumentException.ThrowIfNullOrWhiteSpace(command.Password);
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            command.RefreshToken);
 
-        ValidateOrganizationId(
-            command.OrganizationId);
+        var utcNow =
+            _clock.UtcNow;
 
-        var normalizedEmail =
-            command.Email
-                .Trim()
-                .ToUpperInvariant();
+        var tokenHash =
+            _refreshTokenProvider.Hash(
+                command.RefreshToken);
+
+        var currentToken =
+            await _refreshTokenRepository.GetByTokenHashAsync(
+                tokenHash,
+                cancellationToken);
+
+        if (currentToken is null ||
+            !currentToken.IsActive(utcNow))
+        {
+            throw new InvalidRefreshTokenException();
+        }
 
         var user =
-            await _userRepository.GetByNormalizedEmailAsync(
-                normalizedEmail,
+            await _userRepository.GetByIdAsync(
+                currentToken.UserId,
                 cancellationToken);
 
         if (user is null ||
-            !user.IsActive ||
-            !_passwordHasher.Verify(
-                user.PasswordHash,
-                command.Password))
+            !user.IsActive)
         {
-            throw new InvalidCredentialsException();
+            throw new InvalidRefreshTokenException();
         }
 
         var membership =
             await _organizationMemberRepository.GetByOrganizationAndUserAsync(
-                command.OrganizationId,
+                currentToken.OrganizationId,
                 user.Id,
                 cancellationToken);
 
         if (membership is null ||
             membership.Status != OrganizationMemberStatus.Active)
         {
-            throw new InvalidCredentialsException();
+            throw new InvalidRefreshTokenException();
         }
 
         var organization =
             await _organizationRepository.GetByIdAsync(
-                command.OrganizationId,
+                currentToken.OrganizationId,
                 cancellationToken);
 
         if (organization is null ||
             organization.Status != OrganizationStatus.Active)
         {
-            throw new InvalidCredentialsException();
+            throw new InvalidRefreshTokenException();
         }
-
-        var utcNow =
-            _clock.UtcNow;
 
         var accessToken =
             _accessTokenProvider.Create(
@@ -111,23 +112,30 @@ public sealed class LoginHandler
             _refreshTokenProvider.Generate(
                 utcNow);
 
-        var refreshToken =
+        var replacementTokenId =
+            _guidGenerator.NewGuid();
+
+        var replacementToken =
             RefreshToken.Create(
-                _guidGenerator.NewGuid(),
+                replacementTokenId,
                 user.Id,
                 organization.Id,
                 generatedRefreshToken.Hash,
                 generatedRefreshToken.ExpiresAtUtc,
                 utcNow);
 
+        currentToken.Revoke(
+            utcNow,
+            replacementTokenId);
+
         await _refreshTokenRepository.AddAsync(
-            refreshToken,
+            replacementToken,
             cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
 
-        return new LoginResult(
+        return new RefreshSessionResult(
             accessToken.Value,
             accessToken.ExpiresAtUtc,
             generatedRefreshToken.Value,
@@ -135,16 +143,5 @@ public sealed class LoginHandler
             user.Id,
             organization.Id,
             membership.Role);
-    }
-
-    private static void ValidateOrganizationId(
-        Guid organizationId)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Organization id cannot be empty.",
-                nameof(organizationId));
-        }
     }
 }
