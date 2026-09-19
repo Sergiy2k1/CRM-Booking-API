@@ -59,6 +59,11 @@ The project currently includes:
 - custom Worker metrics for Outbox and CSV exports;
 - local OpenTelemetry Collector, Prometheus, Tempo and Grafana stack;
 - pre-provisioned Grafana data sources and BookingHub dashboard;
+- startup configuration validation for API and Worker;
+- separate liveness and PostgreSQL-backed readiness probes;
+- 30-second graceful shutdown timeout for hosted services;
+- Prometheus alert rules for telemetry, Outbox and CSV export failures;
+- environment-overridable Docker development secrets;
 - Dockerfiles for API and Worker;
 - Docker Compose local stack for PostgreSQL, RabbitMQ, API and Worker;
 - GitHub Actions CI for restore, build, tests, compose validation and container builds;
@@ -281,6 +286,8 @@ Local endpoints:
 ```text
 API:               http://localhost:8080
 API health:        http://localhost:8080/health
+API liveness:      http://localhost:8080/health/live
+API readiness:     http://localhost:8080/health/ready
 RabbitMQ UI:       http://localhost:15672
 RabbitMQ AMQP:     localhost:5672
 PostgreSQL:        localhost:5432
@@ -292,6 +299,22 @@ OTLP HTTP:         localhost:4318
 ```
 
 RabbitMQ local credentials are `bookinghub` / `bookinghub`.
+
+### Production hardening
+
+The API validates required database, JWT, RabbitMQ, export-storage and OpenTelemetry settings during startup. The Worker validates its database, RabbitMQ, Outbox, export-processing and OpenTelemetry settings before background processing starts.
+
+Health semantics:
+
+```text
+/health/live   → process is alive
+/health/ready  → PostgreSQL is reachable
+/health        → readiness-compatible alias
+```
+
+Hosted services receive up to 30 seconds for graceful shutdown. The Docker Compose credentials remain development defaults but can be overridden through environment variables. Copy `.env.example` to `.env` for local overrides. Production deployments should inject secrets from the deployment platform and must not use the development JWT placeholder.
+
+Prometheus evaluates local alert rules for Collector target availability, Outbox publish failures and CSV export failures. Alert delivery (for example Slack, email or PagerDuty through Alertmanager) is intentionally deployment-specific.
 
 ### Observability
 
@@ -417,8 +440,8 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. add production secret/configuration hardening;
-2. add deployment-specific readiness checks and alerting rules;
+1. add deployment-specific secret management and TLS termination;
+2. connect Prometheus alerts to an Alertmanager notification channel;
 3. add Redis/search only where justified by measured needs;
 4. replace local export storage with MinIO/S3 when deployment requirements justify it;
 5. harden observability retention, sampling and authentication for production.
