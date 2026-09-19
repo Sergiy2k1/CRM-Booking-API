@@ -108,6 +108,18 @@ public sealed class BookingHubDbContext
             throw new BookingUnavailableException(
                 EmployeeAvailabilityStatus.BookingConflict);
         }
+        catch (DbUpdateException exception)
+            when (IsWorkingHoursExclusionViolation(exception))
+        {
+            throw new InvalidOperationException(
+                "Working hours overlap an existing schedule period.");
+        }
+        catch (DbUpdateException exception)
+            when (IsEmployeeServiceUniqueViolation(exception))
+        {
+            throw new InvalidOperationException(
+                "Service is already assigned to the employee.");
+        }
     }
 
     private static bool IsBookingExclusionViolation(
@@ -117,6 +129,26 @@ public sealed class BookingHubDbContext
         {
             SqlState: PostgresErrorCodes.ExclusionViolation,
             ConstraintName: "EX_bookings_organization_employee_time"
+        };
+    }
+
+    private static bool IsWorkingHoursExclusionViolation(
+        DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.ExclusionViolation,
+            ConstraintName: "EX_working_hours_organization_employee_day_time"
+        };
+    }
+
+    private static bool IsEmployeeServiceUniqueViolation(
+        DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "IX_employee_services_OrganizationId_EmployeeId_ServiceId"
         };
     }
 }
