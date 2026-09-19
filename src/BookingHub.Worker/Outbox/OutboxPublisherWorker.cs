@@ -1,5 +1,7 @@
 using BookingHub.Infrastructure.Messaging.Outbox;
+using System.Diagnostics;
 using BookingHub.Infrastructure.Messaging.RabbitMq;
+using BookingHub.Worker.Observability;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BookingHub.Worker.Outbox;
@@ -107,6 +109,19 @@ public sealed class OutboxPublisherWorker
 
         foreach (var message in messages)
         {
+            using var activity =
+                WorkerTelemetry.ActivitySource.StartActivity(
+                    "outbox.publish",
+                    ActivityKind.Producer);
+
+            activity?.SetTag(
+                "bookinghub.outbox.message_id",
+                message.Id);
+
+            activity?.SetTag(
+                "bookinghub.outbox.message_type",
+                message.Type);
+
             try
             {
                 await _publisher.PublishAsync(
@@ -117,6 +132,8 @@ public sealed class OutboxPublisherWorker
 
                 message.MarkProcessed(
                     DateTimeOffset.UtcNow);
+
+                WorkerTelemetry.OutboxPublished.Add(1);
             }
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
@@ -127,6 +144,12 @@ public sealed class OutboxPublisherWorker
             {
                 message.RecordFailure(
                     exception.Message);
+
+                activity?.SetStatus(
+                    ActivityStatusCode.Error,
+                    exception.Message);
+
+                WorkerTelemetry.OutboxFailed.Add(1);
 
                 LogPublishFailure(
                     _logger,
