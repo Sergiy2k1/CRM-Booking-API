@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using BookingHub.Application.Abstractions.Reporting;
 using BookingHub.Domain.Reporting;
 using BookingHub.Infrastructure.Persistence;
+using BookingHub.Worker.Observability;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookingHub.Worker.Exports;
@@ -159,6 +161,19 @@ public sealed class BookingCsvExportWorker
         ClaimedBookingExport claimed,
         CancellationToken cancellationToken)
     {
+        using var activity =
+            WorkerTelemetry.ActivitySource.StartActivity(
+                "booking_export.process",
+                ActivityKind.Internal);
+
+        activity?.SetTag(
+            "bookinghub.export.id",
+            claimed.Id);
+
+        activity?.SetTag(
+            "bookinghub.organization.id",
+            claimed.OrganizationId);
+
         try
         {
             await using var scope =
@@ -211,6 +226,8 @@ public sealed class BookingCsvExportWorker
 
             await dbContext.SaveChangesAsync(
                 cancellationToken);
+
+            WorkerTelemetry.ExportsCompleted.Add(1);
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -223,6 +240,12 @@ public sealed class BookingCsvExportWorker
                 _logger,
                 claimed.Id,
                 exception);
+
+            activity?.SetStatus(
+                ActivityStatusCode.Error,
+                exception.Message);
+
+            WorkerTelemetry.ExportsFailed.Add(1);
 
             await RecordFailureAsync(
                 claimed.Id,
