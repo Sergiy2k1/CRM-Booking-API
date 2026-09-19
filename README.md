@@ -2,7 +2,7 @@
 
 Production-oriented multi-tenant CRM and booking backend built with ASP.NET Core and .NET 10.
 
-> Current implementation progress: approximately **93%** of the planned backend architecture and core platform scope.
+> Current implementation progress: approximately **96%** of the planned backend architecture and core platform scope.
 
 ## What is already implemented
 
@@ -38,6 +38,10 @@ The project currently includes:
 - employee schedule role policies and overlap protection;
 - service management API with tenant-safe CRUD and lifecycle;
 - employee-service assignment management with duplicate protection;
+- Transactional Outbox stored atomically with booking changes;
+- RabbitMQ topic exchange publishing from the Worker;
+- publisher confirms before outbox messages are marked processed;
+- retry tracking for failed outbox messages;
 - unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
 
 ## Architecture
@@ -289,12 +293,15 @@ Implemented now:
 - WebApplicationFactory;
 - OpenAPI.
 
+Implemented now:
+
+- RabbitMQ;
+- Transactional Outbox;
+
 Planned as the project grows:
 
 - SignalR;
 - Redis;
-- RabbitMQ;
-- Transactional Outbox;
 - Inbox/idempotent consumers;
 - Quartz.NET;
 - Dapper for reporting/read models;
@@ -322,8 +329,8 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. add asynchronous messaging with Transactional Outbox and RabbitMQ;
-2. add SignalR real-time booking updates;
-3. add reporting/read models and background exports; with Transactional Outbox and RabbitMQ;
+1. add SignalR real-time booking updates;
+2. add Inbox/idempotent consumers and notification processing;
+3. add reporting/read models and background exports;
 4. add caching and search where justified;
 5. add observability and production deployment tooling incrementally.

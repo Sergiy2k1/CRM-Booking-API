@@ -5,6 +5,7 @@ using BookingHub.Application.Abstractions.Messaging;
 using BookingHub.Infrastructure.Authentication;
 using BookingHub.Infrastructure.Identifiers;
 using BookingHub.Infrastructure.Messaging.Outbox;
+using BookingHub.Infrastructure.Messaging.RabbitMq;
 using BookingHub.Infrastructure.Persistence;
 using BookingHub.Infrastructure.Persistence.Repositories;
 using BookingHub.Infrastructure.Time;
@@ -40,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeScheduleRepository, EmployeeScheduleRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IOutboxWriter, OutboxWriter>();
+        services.AddScoped<OutboxRepository>();
+        services.AddSingleton<RabbitMqPublisher>();
 
         services.AddScoped<IUnitOfWork>(
             serviceProvider =>
