@@ -5,6 +5,7 @@ using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Services;
 using BookingHub.Domain.Users;
+using BookingHub.Infrastructure.Messaging.Inbox;
 using BookingHub.Infrastructure.Messaging.Outbox;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,6 +56,9 @@ public sealed class BookingHubDbContext
 
     public DbSet<OutboxMessage> OutboxMessages =>
         Set<OutboxMessage>();
+
+    public DbSet<InboxMessage> InboxMessages =>
+        Set<InboxMessage>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

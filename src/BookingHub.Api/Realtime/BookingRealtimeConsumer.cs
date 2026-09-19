@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BookingHub.Application.Bookings.IntegrationEvents;
+using BookingHub.Infrastructure.Messaging.Inbox;
 using Microsoft.AspNetCore.SignalR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -32,7 +33,10 @@ public sealed class BookingRealtimeConsumer
             new EventId(2002, nameof(LogMessageFailure)),
             "Failed to process realtime booking event {RoutingKey} with delivery tag {DeliveryTag}.");
 
+    private const string ConsumerName = "bookinghub.realtime";
+
     private readonly IHubContext<BookingsHub> _hubContext;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BookingRealtimeConsumer> _logger;
     private readonly string _hostName;
     private readonly int _port;
@@ -46,10 +50,12 @@ public sealed class BookingRealtimeConsumer
 
     public BookingRealtimeConsumer(
         IHubContext<BookingsHub> hubContext,
+        IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
         ILogger<BookingRealtimeConsumer> logger)
     {
         _hubContext = hubContext;
+        _scopeFactory = scopeFactory;
         _logger = logger;
 
         _hostName =
@@ -189,6 +195,34 @@ public sealed class BookingRealtimeConsumer
 
                 try
                 {
+                    if (!Guid.TryParse(
+                            delivery.BasicProperties.MessageId,
+                            out var messageId))
+                    {
+                        throw new InvalidOperationException(
+                            "RabbitMQ booking event does not contain a valid MessageId.");
+                    }
+
+                    await using var scope =
+                        _scopeFactory.CreateAsyncScope();
+
+                    var inboxRepository =
+                        scope.ServiceProvider
+                            .GetRequiredService<InboxRepository>();
+
+                    if (await inboxRepository.IsProcessedAsync(
+                            ConsumerName,
+                            messageId,
+                            cancellationToken))
+                    {
+                        await channel.BasicAckAsync(
+                            delivery.DeliveryTag,
+                            multiple: false,
+                            cancellationToken);
+
+                        return;
+                    }
+
                     var bookingEvent =
                         JsonSerializer.Deserialize<BookingIntegrationEvent>(
                             payload,
@@ -208,6 +242,12 @@ public sealed class BookingRealtimeConsumer
                             clientMethod,
                             bookingEvent,
                             cancellationToken);
+
+                    await inboxRepository.MarkProcessedAsync(
+                        ConsumerName,
+                        messageId,
+                        DateTimeOffset.UtcNow,
+                        cancellationToken);
 
                     await channel.BasicAckAsync(
                         delivery.DeliveryTag,

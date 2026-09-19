@@ -5,6 +5,7 @@ using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Services;
 using BookingHub.Infrastructure.Persistence;
+using BookingHub.Infrastructure.Messaging.Inbox;
 using BookingHub.Infrastructure.Messaging.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -83,6 +84,74 @@ public sealed class BookingPersistenceTests
 
         Assert.Null(persisted.ProcessedAtUtc);
         Assert.Equal(0, persisted.AttemptCount);
+    }
+
+    [Fact]
+    public async Task InboxMigrationShouldRejectDuplicateMessageForSameConsumer()
+    {
+        await using var postgreSqlContainer =
+            new PostgreSqlBuilder("postgres:17-alpine")
+                .WithDatabase("bookinghub")
+                .WithUsername("bookinghub")
+                .WithPassword("bookinghub")
+                .Build();
+
+        await postgreSqlContainer.StartAsync(
+            TestContext.Current.CancellationToken);
+
+        var options =
+            new DbContextOptionsBuilder<BookingHubDbContext>()
+                .UseNpgsql(
+                    postgreSqlContainer.GetConnectionString())
+                .Options;
+
+        await using var dbContext =
+            new BookingHubDbContext(options);
+
+        await dbContext.Database.MigrateAsync(
+            TestContext.Current.CancellationToken);
+
+        var messageId = Guid.NewGuid();
+        var processedAtUtc =
+            new DateTimeOffset(
+                2026,
+                9,
+                19,
+                21,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        dbContext.InboxMessages.Add(
+            InboxMessage.Create(
+                "bookinghub.realtime",
+                messageId,
+                processedAtUtc));
+
+        await dbContext.SaveChangesAsync(
+            TestContext.Current.CancellationToken);
+
+        dbContext.InboxMessages.Add(
+            InboxMessage.Create(
+                "bookinghub.realtime",
+                messageId,
+                processedAtUtc.AddSeconds(1)));
+
+        var exception =
+            await Assert.ThrowsAsync<DbUpdateException>(
+                async () =>
+                {
+                    await dbContext.SaveChangesAsync(
+                        TestContext.Current.CancellationToken);
+                });
+
+        var postgresException =
+            Assert.IsType<PostgresException>(
+                exception.InnerException);
+
+        Assert.Equal(
+            PostgresErrorCodes.UniqueViolation,
+            postgresException.SqlState);
     }
 
     [Fact]
