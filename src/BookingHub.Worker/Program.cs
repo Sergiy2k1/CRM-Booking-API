@@ -8,6 +8,7 @@ builder.Services
     .AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHostedService<BookingHub.Worker.Outbox.OutboxPublisherWorker>();
+builder.Services.AddHostedService<BookingHub.Worker.Notifications.BookingNotificationConsumer>();
 
 var host = builder.Build();
 host.Run();
