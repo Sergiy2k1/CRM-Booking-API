@@ -1,11 +1,15 @@
 using BookingHub.Application;
 using BookingHub.Infrastructure;
+using BookingHub.Worker.Observability;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
+
+builder.Services.AddWorkerObservability(
+    builder.Configuration);
 
 builder.Services.AddHostedService<BookingHub.Worker.Outbox.OutboxPublisherWorker>();
 builder.Services.AddHostedService<BookingHub.Worker.Notifications.BookingNotificationConsumer>();
