@@ -18,17 +18,11 @@ public sealed class OutboxRepository
         int maxAttempts,
         CancellationToken cancellationToken = default)
     {
-        if (batchSize <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(batchSize));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(
+            batchSize);
 
-        if (maxAttempts <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(maxAttempts));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(
+            maxAttempts);
 
         return await _dbContext.OutboxMessages
             .Where(
