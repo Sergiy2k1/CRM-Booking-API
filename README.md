@@ -51,6 +51,10 @@ The project currently includes:
 - notification read/unread API;
 - Dapper booking summary reporting read model;
 - currency-safe completed-revenue aggregation;
+- asynchronous booking CSV export jobs;
+- concurrent-safe export claiming with PostgreSQL `FOR UPDATE SKIP LOCKED`;
+- retry/reclaim handling for stale export jobs;
+- shared file-storage abstraction with local Docker volume implementation;
 - Dockerfiles for API and Worker;
 - Docker Compose local stack for PostgreSQL, RabbitMQ, API and Worker;
 - GitHub Actions CI for restore, build, tests, compose validation and container builds;
@@ -228,6 +232,16 @@ Requires a valid Bearer access token for the same organization. Booking creation
 
 Booking creation and rescheduling execute tenant ownership, employee/service and availability checks. Rescheduling preserves the booking's original duration and excludes the booking itself from overlap detection.
 
+### Booking CSV exports
+
+```http
+POST /api/organizations/{organizationId}/reports/bookings/exports
+GET  /api/organizations/{organizationId}/reports/bookings/exports/{exportId}
+GET  /api/organizations/{organizationId}/reports/bookings/exports/{exportId}/download
+```
+
+Export creation returns `202 Accepted`. The Worker claims pending jobs, reads booking data through Dapper, generates CSV asynchronously and stores the file through `IExportFileStorage`. Export status progresses through `Pending`, `Processing`, `Completed` or `Failed`. Only the requesting user in the same organization can query or download the export.
+
 ## PostgreSQL
 
 Default local development connection:
@@ -373,8 +387,8 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. add asynchronous CSV report exports;
-2. add caching/search only where justified;
-3. add OpenTelemetry metrics and distributed tracing;
-4. add production secret/configuration hardening;
-5. add deployment-specific health/readiness and operational dashboards.
+1. add OpenTelemetry metrics and distributed tracing;
+2. add production secret/configuration hardening;
+3. add deployment-specific health/readiness and operational dashboards;
+4. add Redis/search only where justified by measured needs;
+5. replace local export storage with MinIO/S3 when deployment requirements justify it.
