@@ -50,6 +50,14 @@ jobs:
       - name: Validate Docker Compose
         run: docker compose config --quiet
 
+      - name: Validate Prometheus configuration
+        run: |
+          docker run --rm \
+            -v "$PWD/deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "$PWD/deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro" \
+            prom/prometheus:v3.14.0 \
+            promtool check config /etc/prometheus/prometheus.yml
+
       - name: Build API image
         run: docker build --file src/BookingHub.Api/Dockerfile --tag bookinghub-api:ci .
 
