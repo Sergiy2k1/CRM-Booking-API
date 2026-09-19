@@ -7,6 +7,12 @@ namespace BookingHub.Worker.Outbox;
 public sealed class OutboxPublisherWorker
     : BackgroundService
 {
+    private static readonly Action<ILogger, Guid, string, int, Exception?> LogPublishFailure =
+        LoggerMessage.Define<Guid, string, int>(
+            LogLevel.Error,
+            new EventId(1001, nameof(LogPublishFailure)),
+            "Failed to publish outbox message {OutboxMessageId} of type {OutboxMessageType}. Attempt {AttemptCount}.");
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMqPublisher _publisher;
     private readonly ILogger<OutboxPublisherWorker> _logger;
@@ -98,12 +104,12 @@ public sealed class OutboxPublisherWorker
                 message.RecordFailure(
                     exception.Message);
 
-                _logger.LogError(
-                    exception,
-                    "Failed to publish outbox message {OutboxMessageId} of type {OutboxMessageType}. Attempt {AttemptCount}.",
+                LogPublishFailure(
+                    _logger,
                     message.Id,
                     message.Type,
-                    message.AttemptCount);
+                    message.AttemptCount,
+                    exception);
             }
 
             await repository.SaveChangesAsync(

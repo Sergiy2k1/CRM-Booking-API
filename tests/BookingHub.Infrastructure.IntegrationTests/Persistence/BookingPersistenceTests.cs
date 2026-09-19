@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BookingHub.Domain.Bookings;
 using BookingHub.Domain.Customers;
 using BookingHub.Domain.Employees;
@@ -69,7 +70,17 @@ public sealed class BookingPersistenceTests
                     TestContext.Current.CancellationToken);
 
         Assert.Equal("booking.created", persisted.Type);
-        Assert.Equal("{\"bookingId\":\"test\"}", persisted.Payload);
+
+        using var payloadDocument =
+            JsonDocument.Parse(
+                persisted.Payload);
+
+        Assert.Equal(
+            "test",
+            payloadDocument.RootElement
+                .GetProperty("bookingId")
+                .GetString());
+
         Assert.Null(persisted.ProcessedAtUtc);
         Assert.Equal(0, persisted.AttemptCount);
     }
