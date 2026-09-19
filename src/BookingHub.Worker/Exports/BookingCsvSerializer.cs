@@ -40,7 +40,9 @@ internal static class BookingCsvSerializer
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var normalized = value ?? string.Empty;
+        var normalized =
+            ProtectSpreadsheetFormula(
+                value ?? string.Empty);
 
         var requiresQuotes =
             normalized.Contains(',') ||
@@ -66,5 +68,26 @@ internal static class BookingCsvSerializer
         }
 
         builder.Append(',');
+    }
+
+    private static string ProtectSpreadsheetFormula(
+        string value)
+    {
+        if (value.Length == 0)
+        {
+            return value;
+        }
+
+        var trimmedStart =
+            value.TrimStart();
+
+        if (trimmedStart.Length == 0)
+        {
+            return value;
+        }
+
+        return trimmedStart[0] is '=' or '+' or '-' or '@'
+            ? "'" + value
+            : value;
     }
 }
