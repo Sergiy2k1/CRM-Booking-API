@@ -14,15 +14,16 @@ processors:
   batch:
 
 exporters:
-  otlp/tempo:
+  otlp_grpc/tempo:
     endpoint: tempo:4317
     tls:
       insecure: true
 
   prometheus:
     endpoint: 0.0.0.0:9464
-    resource_to_telemetry_conversion:
-      enabled: true
+    resource_constant_labels:
+      included:
+        - "*"
 
 service:
   extensions:
@@ -35,7 +36,7 @@ service:
       processors:
         - batch
       exporters:
-        - otlp/tempo
+        - otlp_grpc/tempo
 
     metrics:
       receivers:
