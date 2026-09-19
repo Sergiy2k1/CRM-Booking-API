@@ -4,6 +4,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using BookingHub.Api.Contracts.Customers;
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Authentication;
@@ -22,6 +24,15 @@ namespace BookingHub.Api.IntegrationTests.Customers;
 
 public sealed class CustomerEndpointTests
 {
+    private static readonly JsonSerializerOptions JsonOptions =
+        new(JsonSerializerDefaults.Web)
+        {
+            Converters =
+            {
+                new JsonStringEnumConverter()
+            }
+        };
+
     private const string SigningKey =
         "development-only-signing-key-change-before-production-2026";
 
@@ -49,8 +60,8 @@ public sealed class CustomerEndpointTests
 
         var body =
             await response.Content.ReadFromJsonAsync<CustomerResponse>(
-                cancellationToken:
-                    TestContext.Current.CancellationToken);
+                JsonOptions,
+                TestContext.Current.CancellationToken);
 
         Assert.NotNull(body);
         Assert.Equal(context.CustomerId, body.Id);
