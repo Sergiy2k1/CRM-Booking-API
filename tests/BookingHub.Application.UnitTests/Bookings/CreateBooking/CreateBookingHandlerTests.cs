@@ -1,6 +1,8 @@
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Persistence;
+using BookingHub.Application.Abstractions.Messaging;
 using BookingHub.Application.Bookings.CreateBooking;
+using BookingHub.Application.Bookings.IntegrationEvents;
 using BookingHub.Application.Common.Exceptions;
 using BookingHub.Domain.Availability;
 using BookingHub.Domain.Bookings;
@@ -45,6 +47,9 @@ public sealed class CreateBookingHandlerTests
     private readonly IGuidGenerator _guidGenerator =
         Substitute.For<IGuidGenerator>();
 
+    private readonly IOutboxWriter _outboxWriter =
+        Substitute.For<IOutboxWriter>();
+
     [Fact]
     public async Task HandleWithValidDataShouldCreateBooking()
     {
@@ -86,6 +91,16 @@ public sealed class CreateBookingHandlerTests
         Assert.Equal(BookingStatus.Pending, result.Status);
         Assert.Equal(700m, result.PriceAmount);
         Assert.Equal("UAH", result.Currency);
+
+        await _outboxWriter
+            .Received(1)
+            .EnqueueAsync(
+                BookingEventNames.Created,
+                Arg.Is<BookingIntegrationEvent>(
+                    integrationEvent =>
+                        integrationEvent.BookingId == context.BookingId),
+                context.CreatedAtUtc,
+                Arg.Any<CancellationToken>());
 
         await _unitOfWork
             .Received(1)
@@ -377,6 +392,14 @@ public sealed class CreateBookingHandlerTests
                 Arg.Any<Booking>(),
                 Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
+
+        _outboxWriter
+            .EnqueueAsync(
+                Arg.Any<string>(),
+                Arg.Any<BookingIntegrationEvent>(),
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
     }
 
     private static Employee CreateEmployee(
@@ -404,7 +427,8 @@ public sealed class CreateBookingHandlerTests
             _bookingRepository,
             _unitOfWork,
             _clock,
-            _guidGenerator);
+            _guidGenerator,
+            _outboxWriter);
     }
 
     private static CreateBookingCommand CreateCommand(

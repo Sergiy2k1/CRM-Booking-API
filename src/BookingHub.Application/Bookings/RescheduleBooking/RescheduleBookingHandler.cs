@@ -1,6 +1,8 @@
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Persistence;
+using BookingHub.Application.Abstractions.Messaging;
 using BookingHub.Application.Bookings.Common;
+using BookingHub.Application.Bookings.IntegrationEvents;
 using BookingHub.Application.Bookings.CreateBooking;
 using BookingHub.Application.Common.Exceptions;
 using BookingHub.Domain.Availability;
@@ -18,6 +20,7 @@ public sealed class RescheduleBookingHandler
     private readonly IEmployeeScheduleRepository _employeeScheduleRepository;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IOutboxWriter _outboxWriter;
 
     public RescheduleBookingHandler(
         IBookingRepository bookingRepository,
@@ -25,7 +28,8 @@ public sealed class RescheduleBookingHandler
         IEmployeeRepository employeeRepository,
         IEmployeeScheduleRepository employeeScheduleRepository,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IOutboxWriter outboxWriter)
     {
         _bookingRepository = bookingRepository;
         _organizationRepository = organizationRepository;
@@ -33,6 +37,7 @@ public sealed class RescheduleBookingHandler
         _employeeScheduleRepository = employeeScheduleRepository;
         _clock = clock;
         _unitOfWork = unitOfWork;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<BookingDetails> HandleAsync(
@@ -138,10 +143,21 @@ public sealed class RescheduleBookingHandler
                 availabilityStatus);
         }
 
+        var updatedAtUtc =
+            _clock.UtcNow;
+
         booking.Reschedule(
             startsAtUtc,
             endsAtUtc,
-            _clock.UtcNow);
+            updatedAtUtc);
+
+        await _outboxWriter.EnqueueAsync(
+            BookingEventNames.Rescheduled,
+            BookingIntegrationEvent.From(
+                booking,
+                updatedAtUtc),
+            updatedAtUtc,
+            cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);

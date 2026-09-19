@@ -1,6 +1,8 @@
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Persistence;
+using BookingHub.Application.Abstractions.Messaging;
 using BookingHub.Application.Common.Exceptions;
+using BookingHub.Application.Bookings.IntegrationEvents;
 using BookingHub.Domain.Availability;
 using BookingHub.Domain.Bookings;
 using BookingHub.Domain.Customers;
@@ -22,6 +24,7 @@ public sealed class CreateBookingHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
     private readonly IGuidGenerator _guidGenerator;
+    private readonly IOutboxWriter _outboxWriter;
 
     public CreateBookingHandler(
         IOrganizationRepository organizationRepository,
@@ -33,7 +36,8 @@ public sealed class CreateBookingHandler
         IBookingRepository bookingRepository,
         IUnitOfWork unitOfWork,
         IClock clock,
-        IGuidGenerator guidGenerator)
+        IGuidGenerator guidGenerator,
+        IOutboxWriter outboxWriter)
     {
         _organizationRepository = organizationRepository;
         _customerRepository = customerRepository;
@@ -45,6 +49,7 @@ public sealed class CreateBookingHandler
         _unitOfWork = unitOfWork;
         _clock = clock;
         _guidGenerator = guidGenerator;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<CreateBookingResult> HandleAsync(
@@ -222,6 +227,14 @@ public sealed class CreateBookingHandler
 
         await _bookingRepository.AddAsync(
             booking,
+            cancellationToken);
+
+        await _outboxWriter.EnqueueAsync(
+            BookingEventNames.Created,
+            BookingIntegrationEvent.From(
+                booking,
+                booking.CreatedAtUtc),
+            booking.CreatedAtUtc,
             cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(

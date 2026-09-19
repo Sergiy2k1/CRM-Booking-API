@@ -4,6 +4,7 @@ using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Services;
 using BookingHub.Infrastructure.Persistence;
+using BookingHub.Infrastructure.Messaging.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -13,6 +14,66 @@ namespace BookingHub.Infrastructure.IntegrationTests.Persistence;
 
 public sealed class BookingPersistenceTests
 {
+    [Fact]
+    public async Task OutboxMigrationShouldPersistJsonPayload()
+    {
+        await using var postgreSqlContainer =
+            new PostgreSqlBuilder("postgres:17-alpine")
+                .WithDatabase("bookinghub")
+                .WithUsername("bookinghub")
+                .WithPassword("bookinghub")
+                .Build();
+
+        await postgreSqlContainer.StartAsync(
+            TestContext.Current.CancellationToken);
+
+        var options =
+            new DbContextOptionsBuilder<BookingHubDbContext>()
+                .UseNpgsql(
+                    postgreSqlContainer.GetConnectionString())
+                .Options;
+
+        await using var dbContext =
+            new BookingHubDbContext(options);
+
+        await dbContext.Database.MigrateAsync(
+            TestContext.Current.CancellationToken);
+
+        var occurredAtUtc =
+            new DateTimeOffset(
+                2026,
+                9,
+                19,
+                20,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        var message =
+            OutboxMessage.Create(
+                Guid.NewGuid(),
+                "booking.created",
+                "{\"bookingId\":\"test\"}",
+                occurredAtUtc);
+
+        dbContext.OutboxMessages.Add(message);
+
+        await dbContext.SaveChangesAsync(
+            TestContext.Current.CancellationToken);
+
+        var persisted =
+            await dbContext.OutboxMessages
+                .AsNoTracking()
+                .SingleAsync(
+                    x => x.Id == message.Id,
+                    TestContext.Current.CancellationToken);
+
+        Assert.Equal("booking.created", persisted.Type);
+        Assert.Equal("{\"bookingId\":\"test\"}", persisted.Payload);
+        Assert.Null(persisted.ProcessedAtUtc);
+        Assert.Equal(0, persisted.AttemptCount);
+    }
+
     [Fact]
     public async Task MigrationAndDoubleBookingConstraintShouldWork()
     {

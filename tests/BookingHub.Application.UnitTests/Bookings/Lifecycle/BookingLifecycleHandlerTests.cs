@@ -1,10 +1,12 @@
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Persistence;
+using BookingHub.Application.Abstractions.Messaging;
 using BookingHub.Application.Bookings.ChangeBookingStatus;
 using BookingHub.Application.Bookings.GetBooking;
 using BookingHub.Application.Bookings.ListBookings;
 using BookingHub.Application.Bookings.RescheduleBooking;
 using BookingHub.Application.Bookings.CreateBooking;
+using BookingHub.Application.Bookings.IntegrationEvents;
 using BookingHub.Domain.Availability;
 using BookingHub.Domain.Bookings;
 using BookingHub.Domain.Employees;
@@ -98,7 +100,8 @@ public sealed class BookingLifecycleHandlerTests
             new ChangeBookingStatusHandler(
                 dependencies.BookingRepository,
                 dependencies.Clock,
-                dependencies.UnitOfWork);
+                dependencies.UnitOfWork,
+                dependencies.OutboxWriter);
 
         var result =
             await handler.HandleAsync(
@@ -157,7 +160,8 @@ public sealed class BookingLifecycleHandlerTests
                 dependencies.EmployeeRepository,
                 dependencies.EmployeeScheduleRepository,
                 dependencies.Clock,
-                dependencies.UnitOfWork);
+                dependencies.UnitOfWork,
+                dependencies.OutboxWriter);
 
         var result =
             await handler.HandleAsync(
@@ -229,7 +233,8 @@ public sealed class BookingLifecycleHandlerTests
                 dependencies.EmployeeRepository,
                 dependencies.EmployeeScheduleRepository,
                 dependencies.Clock,
-                dependencies.UnitOfWork);
+                dependencies.UnitOfWork,
+                dependencies.OutboxWriter);
 
         var exception =
             await Assert.ThrowsAsync<BookingUnavailableException>(
@@ -265,6 +270,9 @@ public sealed class BookingLifecycleHandlerTests
 
         var unitOfWork =
             Substitute.For<IUnitOfWork>();
+
+        var outboxWriter =
+            Substitute.For<IOutboxWriter>();
 
         var organization =
             Organization.Create(
@@ -338,13 +346,22 @@ public sealed class BookingLifecycleHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
+        outboxWriter
+            .EnqueueAsync(
+                Arg.Any<string>(),
+                Arg.Any<BookingIntegrationEvent>(),
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
         return new TestDependencies(
             bookingRepository,
             organizationRepository,
             employeeRepository,
             employeeScheduleRepository,
             clock,
-            unitOfWork);
+            unitOfWork,
+            outboxWriter);
     }
 
     private static BookingTestContext CreateContext()
@@ -408,5 +425,6 @@ public sealed class BookingLifecycleHandlerTests
         IEmployeeRepository EmployeeRepository,
         IEmployeeScheduleRepository EmployeeScheduleRepository,
         IClock Clock,
-        IUnitOfWork UnitOfWork);
+        IUnitOfWork UnitOfWork,
+        IOutboxWriter OutboxWriter);
 }
