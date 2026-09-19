@@ -4,6 +4,7 @@ using BookingHub.Domain.Customers;
 using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Notifications;
+using BookingHub.Domain.Reporting;
 using BookingHub.Domain.Services;
 using BookingHub.Domain.Users;
 using BookingHub.Infrastructure.Messaging.Inbox;
@@ -63,6 +64,9 @@ public sealed class BookingHubDbContext
 
     public DbSet<Notification> Notifications =>
         Set<Notification>();
+
+    public DbSet<BookingExportJob> BookingExportJobs =>
+        Set<BookingExportJob>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

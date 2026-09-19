@@ -44,8 +44,12 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeScheduleRepository, EmployeeScheduleRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IBookingExportRepository, BookingExportRepository>();
         services.AddScoped<IBookingReportReader>(
             _ => new DapperBookingReportReader(connectionString));
+        services.AddScoped<IBookingExportReader>(
+            _ => new DapperBookingExportReader(connectionString));
+        services.AddSingleton<IExportFileStorage, LocalExportFileStorage>();
         services.AddScoped<IOutboxWriter, OutboxWriter>();
         services.AddScoped<OutboxRepository>();
         services.AddScoped<InboxRepository>();

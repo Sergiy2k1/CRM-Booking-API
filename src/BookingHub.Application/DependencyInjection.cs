@@ -32,6 +32,9 @@ using BookingHub.Application.Services.UpdateService;
 using BookingHub.Application.Notifications.ListNotifications;
 using BookingHub.Application.Notifications.MarkNotificationRead;
 using BookingHub.Application.Reporting.BookingSummary;
+using BookingHub.Application.Reporting.BookingExports.DownloadBookingCsvExport;
+using BookingHub.Application.Reporting.BookingExports.GetBookingCsvExport;
+using BookingHub.Application.Reporting.BookingExports.RequestBookingCsvExport;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BookingHub.Application;
@@ -81,6 +84,9 @@ public static class DependencyInjection
         services.AddScoped<MarkNotificationReadHandler>();
 
         services.AddScoped<GetBookingSummaryReportHandler>();
+        services.AddScoped<RequestBookingCsvExportHandler>();
+        services.AddScoped<GetBookingCsvExportHandler>();
+        services.AddScoped<DownloadBookingCsvExportHandler>();
 
         return services;
     }
