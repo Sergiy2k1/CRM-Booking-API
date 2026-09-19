@@ -1,6 +1,8 @@
-﻿namespace BookingHub.Domain.Organizations;
+﻿using BookingHub.Domain.Abstractions;
 
-public sealed class Organization
+namespace BookingHub.Domain.Organizations;
+
+public sealed class Organization : AggregateRoot
 {
     public const int MaxNameLength = 200;
     public const int MaxSlugLength = 100;
@@ -12,8 +14,8 @@ public sealed class Organization
         string slug,
         string timeZone,
         DateTimeOffset createdAtUtc)
+        : base(id)
     {
-        Id = id;
         Name = name;
         Slug = slug;
         TimeZone = timeZone;
@@ -21,8 +23,6 @@ public sealed class Organization
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = createdAtUtc;
     }
-
-    public Guid Id { get; private set; }
 
     public string Name { get; private set; }
 
@@ -43,13 +43,6 @@ public sealed class Organization
         string timeZone,
         DateTimeOffset createdAtUtc)
     {
-        if (id == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Organization id cannot be empty.",
-                nameof(id));
-        }
-
         ValidateName(name);
         ValidateSlug(slug);
         ValidateTimeZone(timeZone);

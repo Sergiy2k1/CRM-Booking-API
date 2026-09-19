@@ -8,7 +8,6 @@ public sealed class OrganizationTests
     [Fact]
     public void CreateWithValidDataShouldCreateActiveOrganization()
     {
-        // Arrange
         var id = Guid.NewGuid();
 
         var createdAtUtc =
@@ -21,7 +20,6 @@ public sealed class OrganizationTests
                 0,
                 TimeSpan.Zero);
 
-        // Act
         var organization = Organization.Create(
             id,
             "Beauty Studio",
@@ -29,17 +27,19 @@ public sealed class OrganizationTests
             "Europe/Kyiv",
             createdAtUtc);
 
-        // Assert
         Assert.Equal(id, organization.Id);
         Assert.Equal("Beauty Studio", organization.Name);
         Assert.Equal("beauty-studio", organization.Slug);
         Assert.Equal("Europe/Kyiv", organization.TimeZone);
+
         Assert.Equal(
             OrganizationStatus.Active,
             organization.Status);
+
         Assert.Equal(
             createdAtUtc,
             organization.CreatedAtUtc);
+
         Assert.Equal(
             createdAtUtc,
             organization.UpdatedAtUtc);
@@ -48,12 +48,14 @@ public sealed class OrganizationTests
     [Fact]
     public void CreateShouldNormalizeSlug()
     {
+        var createdAtUtc = DateTimeOffset.UtcNow;
+
         var organization = Organization.Create(
             Guid.NewGuid(),
             "Beauty Studio",
             "  BEAUTY-STUDIO  ",
             "Europe/Kyiv",
-            DateTimeOffset.UtcNow);
+            createdAtUtc);
 
         Assert.Equal(
             "beauty-studio",
@@ -63,12 +65,14 @@ public sealed class OrganizationTests
     [Fact]
     public void CreateWithEmptyNameShouldThrowArgumentException()
     {
+        var createdAtUtc = DateTimeOffset.UtcNow;
+
         var action = () => Organization.Create(
             Guid.NewGuid(),
             "",
             "beauty-studio",
             "Europe/Kyiv",
-            DateTimeOffset.UtcNow);
+            createdAtUtc);
 
         Assert.Throws<ArgumentException>(action);
     }
@@ -76,12 +80,29 @@ public sealed class OrganizationTests
     [Fact]
     public void CreateWithInvalidSlugShouldThrowArgumentException()
     {
+        var createdAtUtc = DateTimeOffset.UtcNow;
+
         var action = () => Organization.Create(
             Guid.NewGuid(),
             "Beauty Studio",
             "beauty studio!",
             "Europe/Kyiv",
-            DateTimeOffset.UtcNow);
+            createdAtUtc);
+
+        Assert.Throws<ArgumentException>(action);
+    }
+
+    [Fact]
+    public void CreateWithEmptyIdShouldThrowArgumentException()
+    {
+        var createdAtUtc = DateTimeOffset.UtcNow;
+
+        var action = () => Organization.Create(
+            Guid.Empty,
+            "Beauty Studio",
+            "beauty-studio",
+            "Europe/Kyiv",
+            createdAtUtc);
 
         Assert.Throws<ArgumentException>(action);
     }
