@@ -2,7 +2,7 @@
 
 Production-oriented multi-tenant CRM and booking backend built with ASP.NET Core and .NET 10.
 
-> Current implementation progress: approximately **90%** of the planned backend architecture and core platform scope.
+> Current implementation progress: approximately **93%** of the planned backend architecture and core platform scope.
 
 ## What is already implemented
 
@@ -21,8 +21,8 @@ The project currently includes:
 - PostgreSQL persistence with Entity Framework Core;
 - PostgreSQL migrations;
 - database-level double-booking protection with a GiST exclusion constraint;
-- application-level `CreateBooking` use case;
-- HTTP endpoint for creating bookings;
+- complete booking lifecycle application use cases;
+- booking create/get/list/confirm/reschedule/cancel/complete/no-show HTTP endpoints;
 - centralized Problem Details error handling;
 - password hashing;
 - JWT access token generation and validation;
@@ -195,15 +195,22 @@ POST /api/auth/login
 POST /api/auth/refresh
 ```
 
-### Create booking
+### Booking lifecycle
 
 ```http
 POST /api/organizations/{organizationId}/bookings
+GET  /api/organizations/{organizationId}/bookings
+GET  /api/organizations/{organizationId}/bookings/{bookingId}
+POST /api/organizations/{organizationId}/bookings/{bookingId}/confirm
+POST /api/organizations/{organizationId}/bookings/{bookingId}/reschedule
+POST /api/organizations/{organizationId}/bookings/{bookingId}/cancel
+POST /api/organizations/{organizationId}/bookings/{bookingId}/complete
+POST /api/organizations/{organizationId}/bookings/{bookingId}/no-show
 ```
 
 Requires a valid Bearer access token for the same organization. Booking creation is currently allowed for `Owner`, `Admin`, `Manager`, and `Receptionist`; `Employee` receives `403 Forbidden`.
 
-The booking endpoint currently executes the complete booking application workflow including tenant ownership checks, employee/service validation and availability checks.
+Booking creation and rescheduling execute tenant ownership, employee/service and availability checks. Rescheduling preserves the booking's original duration and excludes the booking itself from overlap detection.
 
 ## PostgreSQL
 
@@ -315,8 +322,8 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. finish remaining booking lifecycle API use cases;
-2. expand role/permission rules to additional use cases;
-3. add asynchronous messaging with Transactional Outbox and RabbitMQ;
-4. add SignalR real-time booking updates;
-5. add caching, observability and production deployment tooling incrementally.
+1. add asynchronous messaging with Transactional Outbox and RabbitMQ;
+2. add SignalR real-time booking updates;
+3. add reporting/read models and background exports; with Transactional Outbox and RabbitMQ;
+4. add caching and search where justified;
+5. add observability and production deployment tooling incrementally.
