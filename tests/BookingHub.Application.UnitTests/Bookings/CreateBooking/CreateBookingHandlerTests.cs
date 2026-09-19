@@ -63,7 +63,8 @@ public sealed class CreateBookingHandlerTests
         var handler = CreateHandler();
 
         var result = await handler.HandleAsync(
-            CreateCommand(context));
+            CreateCommand(context),
+            TestContext.Current.CancellationToken);
 
         Assert.NotNull(addedBooking);
         Assert.Equal(context.BookingId, addedBooking.Id);
@@ -128,7 +129,8 @@ public sealed class CreateBookingHandlerTests
         var exception =
             await Assert.ThrowsAsync<BookingUnavailableException>(
                 () => handler.HandleAsync(
-                    CreateCommand(context)));
+                    CreateCommand(context),
+                    TestContext.Current.CancellationToken));
 
         Assert.Equal(
             EmployeeAvailabilityStatus.BookingConflict,
@@ -175,7 +177,8 @@ public sealed class CreateBookingHandlerTests
         var exception =
             await Assert.ThrowsAsync<EntityNotFoundException>(
                 () => handler.HandleAsync(
-                    CreateCommand(context)));
+                    CreateCommand(context),
+                    TestContext.Current.CancellationToken));
 
         Assert.Equal(
             nameof(Customer),
