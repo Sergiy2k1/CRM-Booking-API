@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using BookingHub.Api.Authorization;
 using BookingHub.Api.ErrorHandling;
 using BookingHub.Application;
+using BookingHub.Domain.Organizations;
 using BookingHub.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -62,6 +63,7 @@ builder.Services.AddSingleton<
 
 builder.Services.AddAuthorization(
     options =>
+    {
         options.AddPolicy(
             AuthorizationPolicies.OrganizationAccess,
             policy =>
@@ -69,7 +71,24 @@ builder.Services.AddAuthorization(
                 policy.RequireAuthenticatedUser();
                 policy.AddRequirements(
                     new OrganizationAccessRequirement());
-            }));
+            });
+
+        options.AddPolicy(
+            AuthorizationPolicies.BookingManagement,
+            policy =>
+            {
+                policy.RequireAuthenticatedUser();
+
+                policy.RequireRole(
+                    OrganizationRole.Owner.ToString(),
+                    OrganizationRole.Admin.ToString(),
+                    OrganizationRole.Manager.ToString(),
+                    OrganizationRole.Receptionist.ToString());
+
+                policy.AddRequirements(
+                    new OrganizationAccessRequirement());
+            });
+    });
 
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();

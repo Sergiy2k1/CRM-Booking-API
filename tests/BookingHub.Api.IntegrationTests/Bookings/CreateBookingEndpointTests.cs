@@ -50,7 +50,9 @@ public sealed class CreateBookingEndpointTests
 
         AddAuthorizationHeader(
             client,
-            CreateAccessToken(context.OrganizationId));
+            CreateAccessToken(
+                context.OrganizationId,
+                OrganizationRole.Admin));
 
         var request = CreateRequest(context);
 
@@ -103,7 +105,9 @@ public sealed class CreateBookingEndpointTests
 
         AddAuthorizationHeader(
             client,
-            CreateAccessToken(Guid.NewGuid()));
+            CreateAccessToken(
+                Guid.NewGuid(),
+                OrganizationRole.Admin));
 
         using var response =
             await client.PostAsJsonAsync(
@@ -113,6 +117,58 @@ public sealed class CreateBookingEndpointTests
 
         Assert.Equal(
             HttpStatusCode.Forbidden,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostWithEmployeeRoleShouldReturnForbidden()
+    {
+        var context = CreateContext();
+        var dependencies = ConfigureDependencies(context);
+
+        using var application = CreateApplication(dependencies);
+        using var client = application.CreateClient();
+
+        AddAuthorizationHeader(
+            client,
+            CreateAccessToken(
+                context.OrganizationId,
+                OrganizationRole.Employee));
+
+        using var response =
+            await client.PostAsJsonAsync(
+                $"/api/organizations/{context.OrganizationId}/bookings",
+                CreateRequest(context),
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostWithReceptionistRoleShouldReturnCreated()
+    {
+        var context = CreateContext();
+        var dependencies = ConfigureDependencies(context);
+
+        using var application = CreateApplication(dependencies);
+        using var client = application.CreateClient();
+
+        AddAuthorizationHeader(
+            client,
+            CreateAccessToken(
+                context.OrganizationId,
+                OrganizationRole.Receptionist));
+
+        using var response =
+            await client.PostAsJsonAsync(
+                $"/api/organizations/{context.OrganizationId}/bookings",
+                CreateRequest(context),
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
             response.StatusCode);
     }
 
@@ -152,7 +208,9 @@ public sealed class CreateBookingEndpointTests
 
         AddAuthorizationHeader(
             client,
-            CreateAccessToken(context.OrganizationId));
+            CreateAccessToken(
+                context.OrganizationId,
+                OrganizationRole.Admin));
 
         using var response =
             await client.PostAsJsonAsync(
@@ -183,7 +241,8 @@ public sealed class CreateBookingEndpointTests
     }
 
     private static string CreateAccessToken(
-        Guid organizationId)
+        Guid organizationId,
+        OrganizationRole role)
     {
         var now = DateTime.UtcNow;
 
@@ -197,7 +256,7 @@ public sealed class CreateBookingEndpointTests
                 organizationId.ToString()),
             new Claim(
                 ClaimTypes.Role,
-                OrganizationRole.Admin.ToString())
+                role.ToString())
         };
 
         var credentials =

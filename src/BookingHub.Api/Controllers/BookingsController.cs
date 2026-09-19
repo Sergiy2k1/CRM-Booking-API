@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace BookingHub.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = AuthorizationPolicies.OrganizationAccess)]
+[Authorize(Policy = AuthorizationPolicies.BookingManagement)]
 [Route("api/organizations/{organizationId:guid}/bookings")]
 public sealed class BookingsController : ControllerBase
 {
