@@ -49,6 +49,9 @@ The project currently includes:
 - persistent per-user booking notifications;
 - idempotent RabbitMQ notification consumer;
 - notification read/unread API;
+- Dockerfiles for API and Worker;
+- Docker Compose local stack for PostgreSQL, RabbitMQ, API and Worker;
+- GitHub Actions CI for restore, build, tests, compose validation and container builds;
 - unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
 
 ## Architecture
@@ -247,6 +250,40 @@ Requirements:
 - Docker Desktop for PostgreSQL integration tests;
 - PostgreSQL when running the API against a local database.
 
+### Run the full local stack with Docker Compose
+
+```powershell
+docker compose up --build
+```
+
+Local endpoints:
+
+```text
+API:               http://localhost:8080
+API health:        http://localhost:8080/health
+RabbitMQ UI:       http://localhost:15672
+RabbitMQ AMQP:     localhost:5672
+PostgreSQL:        localhost:5432
+```
+
+RabbitMQ local credentials are `bookinghub` / `bookinghub`.
+
+The Compose API enables `Database__MigrateOnStartup=true`, so EF Core migrations are applied on local container startup. Production deployments should keep this disabled and apply migrations as a separate deployment step.
+
+Stop the stack:
+
+```powershell
+docker compose down
+```
+
+Remove local database/RabbitMQ volumes too:
+
+```powershell
+docker compose down -v
+```
+
+### Build without containers
+
 Restore and build:
 
 ```powershell
@@ -305,6 +342,8 @@ Implemented now:
 - RabbitMQ;
 - Transactional Outbox;
 - SignalR;
+- Docker Compose;
+- GitHub Actions CI;
 
 Planned as the project grows:
 
@@ -316,9 +355,7 @@ Planned as the project grows:
 - Polly;
 - OpenTelemetry;
 - Prometheus/Grafana;
-- distributed tracing;
-- Docker Compose;
-- GitHub Actions.
+- distributed tracing.
 
 ## Design principles
 
@@ -337,6 +374,6 @@ The immediate next work is:
 
 1. add reporting/read models and background exports;
 2. add caching/search only where justified;
-3. add caching and search where justified;
-4. add observability and production deployment tooling;
-5. add Docker Compose and CI automation.
+3. add OpenTelemetry metrics and distributed tracing;
+4. add production secret/configuration hardening;
+5. add deployment-specific health/readiness and operational dashboards.

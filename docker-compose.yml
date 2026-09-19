@@ -1,0 +1,96 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: bookinghub
+      POSTGRES_USER: bookinghub
+      POSTGRES_PASSWORD: bookinghub
+    ports:
+      - "5432:5432"
+    volumes:
+      - bookinghub-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookinghub -d bookinghub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: bookinghub
+      RABBITMQ_DEFAULT_PASS: bookinghub
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - bookinghub-rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/BookingHub.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=bookinghub
+      Database__MigrateOnStartup: "true"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__UserName: bookinghub
+      RabbitMq__Password: bookinghub
+      RabbitMq__VirtualHost: /
+      RabbitMq__Exchange: bookinghub.events
+      RabbitMq__Queue: bookinghub.realtime
+      RabbitMq__BindingKey: booking.#
+      RabbitMq__ReconnectSeconds: "5"
+      Jwt__Issuer: BookingHub
+      Jwt__Audience: BookingHub.Api
+      Jwt__SigningKey: development-only-signing-key-change-before-production-2026
+      Jwt__AccessTokenMinutes: "15"
+      Jwt__RefreshTokenDays: "30"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/BookingHub.Worker/Dockerfile
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=bookinghub
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__UserName: bookinghub
+      RabbitMq__Password: bookinghub
+      RabbitMq__VirtualHost: /
+      RabbitMq__Exchange: bookinghub.events
+      RabbitMq__NotificationQueue: bookinghub.notifications
+      RabbitMq__NotificationBindingKey: booking.#
+      RabbitMq__ReconnectSeconds: "5"
+      Outbox__BatchSize: "50"
+      Outbox__PollIntervalSeconds: "2"
+      Outbox__MaxAttempts: "10"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  bookinghub-postgres:
+  bookinghub-rabbitmq:
