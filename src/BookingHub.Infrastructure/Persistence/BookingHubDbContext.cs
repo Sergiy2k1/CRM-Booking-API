@@ -95,6 +95,13 @@ public sealed class BookingHubDbContext
         {
             throw new InvalidRefreshTokenException();
         }
+        catch (DbUpdateConcurrencyException exception)
+            when (exception.Entries.Any(
+                entry => entry.Entity is Booking))
+        {
+            throw new InvalidOperationException(
+                "Booking was modified concurrently. Reload it and retry the operation.");
+        }
         catch (DbUpdateException exception)
             when (IsBookingExclusionViolation(exception))
         {
