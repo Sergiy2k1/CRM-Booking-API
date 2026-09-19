@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using BookingHub.Api.Authorization;
 using BookingHub.Api.Configuration;
 using BookingHub.Api.Health;
@@ -12,6 +13,7 @@ using BookingHub.Domain.Organizations;
 using BookingHub.Infrastructure;
 using BookingHub.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -90,6 +92,33 @@ builder.Services
         });
 
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddRateLimiter(
+    options =>
+    {
+        options.RejectionStatusCode =
+            StatusCodes.Status429TooManyRequests;
+
+        options.AddPolicy(
+            "auth",
+            httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey:
+                        httpContext.Connection.RemoteIpAddress
+                            ?.ToString()
+                        ?? "unknown",
+                    factory:
+                        _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit = 10,
+                                Window = TimeSpan.FromMinutes(1),
+                                QueueProcessingOrder =
+                                    QueueProcessingOrder.OldestFirst,
+                                QueueLimit = 0,
+                                AutoReplenishment = true
+                            }));
+    });
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<BookingRealtimeConsumer>();
 
@@ -231,6 +260,8 @@ if (bool.TryParse(
 }
 
 app.UseExceptionHandler();
+app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
