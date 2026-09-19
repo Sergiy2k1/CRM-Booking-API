@@ -39,7 +39,7 @@ services:
       dockerfile: src/BookingHub.Api/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=bookinghub
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=bookinghub;GSS Encryption Mode=Disable
       Database__MigrateOnStartup: "true"
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: "5672"
@@ -69,7 +69,7 @@ services:
       context: .
       dockerfile: src/BookingHub.Worker/Dockerfile
     environment:
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=bookinghub
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=bookinghub;GSS Encryption Mode=Disable
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: "5672"
       RabbitMq__UserName: bookinghub
