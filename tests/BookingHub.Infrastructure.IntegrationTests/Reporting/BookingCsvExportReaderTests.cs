@@ -127,6 +127,8 @@ public sealed class BookingCsvExportReaderTests
             Assert.Single(rows);
 
         Assert.Equal(bookingId, row.BookingId);
+        Assert.Equal(startsAtUtc, row.StartsAtUtc);
+        Assert.Equal(startsAtUtc.AddHours(1), row.EndsAtUtc);
         Assert.Equal("Anna Client", row.CustomerName);
         Assert.Equal("Sergiy Barber", row.EmployeeName);
         Assert.Equal("Haircut", row.ServiceName);
