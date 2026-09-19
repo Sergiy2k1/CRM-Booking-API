@@ -2,7 +2,7 @@
 
 Production-oriented multi-tenant CRM and booking backend built with ASP.NET Core and .NET 10.
 
-> Current implementation progress: approximately **68%** of the planned backend architecture and core platform scope.
+> Current implementation progress: approximately **73%** of the planned backend architecture and core platform scope.
 
 ## What is already implemented
 
@@ -28,6 +28,10 @@ The project currently includes:
 - JWT access token generation and validation;
 - tenant-aware JWT claims;
 - login use case and `/api/auth/login` endpoint;
+- opaque refresh tokens with SHA-256 hashing and rotation;
+- `/api/auth/refresh` session renewal endpoint;
+- tenant-aware authorization policy for organization routes;
+- protected booking endpoint with `401`/`403` tenant enforcement;
 - unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
 
 ## Architecture
@@ -167,7 +171,9 @@ Access-token lifetime is currently configured to 15 minutes.
 
 The signing key in `appsettings.json` is a **development-only placeholder**. Production deployment must supply secrets through environment variables or a secret-management system.
 
-> Tenant authorization enforcement on booking routes and refresh tokens are planned for the next authentication step.
+Refresh tokens are opaque random values. Only their SHA-256 hashes are stored in PostgreSQL. Refresh performs token rotation: the previous token is revoked and replaced by a new token.
+
+Organization-scoped booking routes require authentication and verify that the JWT `organization_id` claim matches the `{organizationId}` route value.
 
 ## Current API
 
@@ -177,11 +183,19 @@ The signing key in `appsettings.json` is a **development-only placeholder**. Pro
 POST /api/auth/login
 ```
 
+### Refresh session
+
+```http
+POST /api/auth/refresh
+```
+
 ### Create booking
 
 ```http
 POST /api/organizations/{organizationId}/bookings
 ```
+
+Requires a valid Bearer access token for the same organization.
 
 The booking endpoint currently executes the complete booking application workflow including tenant ownership checks, employee/service validation and availability checks.
 
@@ -264,8 +278,6 @@ Implemented now:
 
 Planned as the project grows:
 
-- Refresh Tokens;
-- stricter tenant authorization policies;
 - SignalR;
 - Redis;
 - RabbitMQ;
@@ -297,8 +309,8 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. finish authentication with refresh tokens;
-2. enforce tenant identity from JWT against route organization IDs;
-3. protect booking endpoints with authorization;
-4. expand API use cases;
-5. add asynchronous messaging and real-time functionality incrementally.
+1. expand booking/customer/employee API use cases;
+2. add role/permission authorization rules;
+3. add asynchronous messaging with Transactional Outbox and RabbitMQ;
+4. add SignalR real-time booking updates;
+5. add caching, observability and production deployment tooling incrementally.
