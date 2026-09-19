@@ -231,11 +231,14 @@ public sealed class BookingConflictDetectorTests
     {
         var startsAtUtc = DateTimeOffset.UtcNow;
 
-        var action = () => BookingConflictDetector.TimeRangesOverlap(
-            startsAtUtc,
-            startsAtUtc,
-            startsAtUtc.AddHours(1),
-            startsAtUtc.AddHours(2));
+        var action = () =>
+        {
+            BookingConflictDetector.TimeRangesOverlap(
+                startsAtUtc,
+                startsAtUtc,
+                startsAtUtc.AddHours(1),
+                startsAtUtc.AddHours(2));
+        };
 
         Assert.Throws<ArgumentException>(action);
     }
