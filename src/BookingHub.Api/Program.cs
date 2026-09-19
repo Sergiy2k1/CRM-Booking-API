@@ -88,6 +88,22 @@ builder.Services.AddAuthorization(
                 policy.AddRequirements(
                     new OrganizationAccessRequirement());
             });
+
+        options.AddPolicy(
+            AuthorizationPolicies.CustomerManagement,
+            policy =>
+            {
+                policy.RequireAuthenticatedUser();
+
+                policy.RequireRole(
+                    OrganizationRole.Owner.ToString(),
+                    OrganizationRole.Admin.ToString(),
+                    OrganizationRole.Manager.ToString(),
+                    OrganizationRole.Receptionist.ToString());
+
+                policy.AddRequirements(
+                    new OrganizationAccessRequirement());
+            });
     });
 
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
