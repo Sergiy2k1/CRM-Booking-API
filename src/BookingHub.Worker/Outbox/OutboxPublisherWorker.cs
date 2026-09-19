@@ -1,4 +1,6 @@
 using BookingHub.Infrastructure.Messaging.Outbox;
+using BookingHub.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using BookingHub.Infrastructure.Messaging.RabbitMq;
 using BookingHub.Worker.Observability;
@@ -97,15 +99,28 @@ public sealed class OutboxPublisherWorker
         await using var scope =
             _scopeFactory.CreateAsyncScope();
 
-        var repository =
+        var dbContext =
             scope.ServiceProvider
-                .GetRequiredService<OutboxRepository>();
+                .GetRequiredService<BookingHubDbContext>();
+
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync(
+                cancellationToken);
 
         var messages =
-            await repository.GetPendingAsync(
-                _batchSize,
-                _maxAttempts,
-                cancellationToken);
+            await dbContext.OutboxMessages
+                .FromSqlInterpolated(
+                    $"""
+                    SELECT *
+                    FROM outbox_messages
+                    WHERE "ProcessedAtUtc" IS NULL
+                      AND "AttemptCount" < {_maxAttempts}
+                    ORDER BY "OccurredAtUtc", "Id"
+                    FOR UPDATE SKIP LOCKED
+                    LIMIT {_batchSize}
+                    """)
+                .ToListAsync(
+                    cancellationToken);
 
         foreach (var message in messages)
         {
@@ -159,9 +174,12 @@ public sealed class OutboxPublisherWorker
                     exception);
             }
 
-            await repository.SaveChangesAsync(
+            await dbContext.SaveChangesAsync(
                 cancellationToken);
         }
+
+        await transaction.CommitAsync(
+            cancellationToken);
 
         return messages.Count;
     }
