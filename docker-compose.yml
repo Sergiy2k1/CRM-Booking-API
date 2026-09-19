@@ -88,6 +88,7 @@ services:
       ExportStorage__RootPath: /data/exports
       BookingExports__PollIntervalSeconds: "2"
       BookingExports__MaxAttempts: "3"
+      BookingExports__ClaimTimeoutMinutes: "5"
     volumes:
       - bookinghub-exports:/data/exports
     depends_on:
