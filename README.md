@@ -49,6 +49,8 @@ The project currently includes:
 - persistent per-user booking notifications;
 - idempotent RabbitMQ notification consumer;
 - notification read/unread API;
+- Dapper booking summary reporting read model;
+- currency-safe completed-revenue aggregation;
 - Dockerfiles for API and Worker;
 - Docker Compose local stack for PostgreSQL, RabbitMQ, API and Worker;
 - GitHub Actions CI for restore, build, tests, compose validation and container builds;
@@ -349,7 +351,6 @@ Planned as the project grows:
 
 - Redis;
 - Quartz.NET;
-- Dapper for reporting/read models;
 - Elasticsearch;
 - MinIO/S3 abstraction;
 - Polly;
@@ -372,7 +373,7 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. add reporting/read models and background exports;
+1. add asynchronous CSV report exports;
 2. add caching/search only where justified;
 3. add OpenTelemetry metrics and distributed tracing;
 4. add production secret/configuration hardening;
