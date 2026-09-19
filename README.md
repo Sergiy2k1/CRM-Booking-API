@@ -2,7 +2,7 @@
 
 Production-oriented multi-tenant CRM and booking backend built with ASP.NET Core and .NET 10.
 
-> Current implementation progress: approximately **75%** of the planned backend architecture and core platform scope.
+> Current implementation progress: approximately **90%** of the planned backend architecture and core platform scope.
 
 ## What is already implemented
 
@@ -36,6 +36,8 @@ The project currently includes:
 - employee management API with tenant-safe read/write flows;
 - employee working-hours and time-off management;
 - employee schedule role policies and overlap protection;
+- service management API with tenant-safe CRUD and lifecycle;
+- employee-service assignment management with duplicate protection;
 - unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
 
 ## Architecture
@@ -313,7 +315,7 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. finish service management and remaining booking lifecycle API use cases;
+1. finish remaining booking lifecycle API use cases;
 2. expand role/permission rules to additional use cases;
 3. add asynchronous messaging with Transactional Outbox and RabbitMQ;
 4. add SignalR real-time booking updates;

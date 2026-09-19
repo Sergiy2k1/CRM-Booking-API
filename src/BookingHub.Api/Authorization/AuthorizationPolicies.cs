@@ -9,4 +9,6 @@ public static class AuthorizationPolicies
     public const string CustomerManagement = "CustomerManagement";
 
     public const string EmployeeManagement = "EmployeeManagement";
+
+    public const string ServiceManagement = "ServiceManagement";
 }
