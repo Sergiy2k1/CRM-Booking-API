@@ -38,12 +38,8 @@ public sealed class LoginHandler
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Email);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Password);
 
-        if (command.OrganizationId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Organization id cannot be empty.",
-                nameof(command.OrganizationId));
-        }
+        ValidateOrganizationId(
+            command.OrganizationId);
 
         var normalizedEmail =
             command.Email
@@ -101,5 +97,16 @@ public sealed class LoginHandler
             user.Id,
             organization.Id,
             membership.Role);
+    }
+
+    private static void ValidateOrganizationId(
+        Guid organizationId)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Organization id cannot be empty.",
+                nameof(organizationId));
+        }
     }
 }

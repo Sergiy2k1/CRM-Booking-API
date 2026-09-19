@@ -1,21 +1,304 @@
-# CRM Booking API
+# BookingHub — CRM Booking API
 
-Production-oriented multi-tenant CRM and booking platform built with ASP.NET Core and .NET 10.
+Production-oriented multi-tenant CRM and booking backend built with ASP.NET Core and .NET 10.
 
-## Current status
+> Current implementation progress: approximately **68%** of the planned backend architecture and core platform scope.
 
-The repository currently contains the base solution architecture only. Business features will be implemented incrementally.
+## What is already implemented
+
+The project currently includes:
+
+- multi-tenant organization domain model;
+- users and organization memberships;
+- organization roles and membership lifecycle;
+- customers;
+- employees;
+- services and employee-service assignments;
+- employee working hours and time-off;
+- booking aggregate and booking lifecycle;
+- booking conflict detection;
+- availability engine;
+- PostgreSQL persistence with Entity Framework Core;
+- PostgreSQL migrations;
+- database-level double-booking protection with a GiST exclusion constraint;
+- application-level `CreateBooking` use case;
+- HTTP endpoint for creating bookings;
+- centralized Problem Details error handling;
+- password hashing;
+- JWT access token generation and validation;
+- tenant-aware JWT claims;
+- login use case and `/api/auth/login` endpoint;
+- unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
 
 ## Architecture
 
-The solution starts as a Clean Architecture-inspired modular monolith with a separate worker process:
+The solution follows Clean Architecture principles and starts as a modular monolith with a separate worker process.
 
-- `BookingHub.Domain` — domain model and business invariants.
-- `BookingHub.Application` — use cases and abstractions.
-- `BookingHub.Infrastructure` — infrastructure implementations.
-- `BookingHub.Api` — HTTP API and composition root.
+```text
+BookingHub.Api
+    ↓
+BookingHub.Application
+    ↓
+BookingHub.Domain
+
+BookingHub.Infrastructure
+    ↑ implements Application abstractions
+
+BookingHub.Worker
+    → background processing host
+```
+
+Projects:
+
+- `BookingHub.Domain` — entities, aggregates, invariants and domain services.
+- `BookingHub.Application` — use cases, orchestration and abstractions.
+- `BookingHub.Infrastructure` — EF Core, PostgreSQL, repositories, JWT and other external implementations.
+- `BookingHub.Api` — HTTP API, authentication pipeline and composition root.
 - `BookingHub.Worker` — background processing host.
+- `BookingHub.Domain.UnitTests` — domain tests.
+- `BookingHub.Application.UnitTests` — application use-case tests.
+- `BookingHub.Infrastructure.IntegrationTests` — real PostgreSQL integration tests.
+- `BookingHub.Api.IntegrationTests` — ASP.NET Core HTTP integration tests.
+- `BookingHub.ArchitectureTests` — architecture rules.
 
-Tests are split into domain unit, application unit, infrastructure integration, API integration, and architecture test projects.
+## Booking model
 
-The next development step is the domain model and ER diagram.
+A booking contains:
+
+- organization;
+- customer;
+- employee;
+- service;
+- UTC start/end interval;
+- service price snapshot;
+- currency;
+- notes;
+- lifecycle status.
+
+Current statuses:
+
+```text
+Pending
+  ├─ Confirmed
+  │    ├─ Completed
+  │    ├─ NoShow
+  │    └─ Cancelled
+  └─ Cancelled
+```
+
+## Availability
+
+Availability is calculated from:
+
+```text
+Working hours
+- Time off
+- Existing Pending/Confirmed bookings
+= Available slot
+```
+
+Working hours use local organization time.
+
+Concrete bookings and time-off intervals are stored as UTC timestamps.
+
+Time intervals use half-open semantics:
+
+```text
+[start, end)
+```
+
+Therefore `10:00–11:00` does not conflict with `11:00–12:00`.
+
+## Double-booking protection
+
+Double booking is prevented at two levels.
+
+### Application/domain check
+
+The availability engine detects overlapping bookings before persistence so the API can return a meaningful business error.
+
+### PostgreSQL constraint
+
+PostgreSQL is the final concurrency guarantee.
+
+The booking table uses a GiST exclusion constraint based on:
+
+```text
+OrganizationId
+EmployeeId
+tstzrange(StartsAtUtc, EndsAtUtc, '[)')
+```
+
+Only `Pending` and `Confirmed` bookings block the slot.
+
+This prevents race conditions where two concurrent requests both see the same slot as available.
+
+## Authentication
+
+Login endpoint:
+
+```http
+POST /api/auth/login
+```
+
+Login requires:
+
+- email;
+- password;
+- organization ID.
+
+The flow validates:
+
+1. active user;
+2. password;
+3. active organization membership;
+4. active organization;
+5. JWT creation.
+
+JWT access tokens currently contain:
+
+- `sub` — user ID;
+- `email`;
+- `organization_id`;
+- role;
+- `jti`.
+
+Access-token lifetime is currently configured to 15 minutes.
+
+The signing key in `appsettings.json` is a **development-only placeholder**. Production deployment must supply secrets through environment variables or a secret-management system.
+
+> Tenant authorization enforcement on booking routes and refresh tokens are planned for the next authentication step.
+
+## Current API
+
+### Login
+
+```http
+POST /api/auth/login
+```
+
+### Create booking
+
+```http
+POST /api/organizations/{organizationId}/bookings
+```
+
+The booking endpoint currently executes the complete booking application workflow including tenant ownership checks, employee/service validation and availability checks.
+
+## PostgreSQL
+
+Default local development connection:
+
+```text
+Host=localhost
+Port=5432
+Database=bookinghub
+Username=bookinghub
+Password=bookinghub
+```
+
+Entity Framework Core is used for domain persistence.
+
+PostgreSQL is the source of truth.
+
+## Running the project
+
+Requirements:
+
+- .NET 10 SDK;
+- Docker Desktop for PostgreSQL integration tests;
+- PostgreSQL when running the API against a local database.
+
+Restore and build:
+
+```powershell
+dotnet restore
+dotnet build
+```
+
+## Tests
+
+Domain tests:
+
+```powershell
+dotnet test tests/BookingHub.Domain.UnitTests
+```
+
+Application tests:
+
+```powershell
+dotnet test tests/BookingHub.Application.UnitTests
+```
+
+Infrastructure integration tests:
+
+```powershell
+dotnet test tests/BookingHub.Infrastructure.IntegrationTests
+```
+
+Docker Desktop must be running for infrastructure integration tests because Testcontainers starts a real PostgreSQL container.
+
+API integration tests:
+
+```powershell
+dotnet test tests/BookingHub.Api.IntegrationTests
+```
+
+## Technology stack
+
+Implemented now:
+
+- .NET 10;
+- ASP.NET Core;
+- C#;
+- Entity Framework Core;
+- PostgreSQL;
+- Npgsql;
+- JWT Bearer authentication;
+- ASP.NET Core password hashing;
+- xUnit;
+- NSubstitute;
+- Testcontainers;
+- WebApplicationFactory;
+- OpenAPI.
+
+Planned as the project grows:
+
+- Refresh Tokens;
+- stricter tenant authorization policies;
+- SignalR;
+- Redis;
+- RabbitMQ;
+- Transactional Outbox;
+- Inbox/idempotent consumers;
+- Quartz.NET;
+- Dapper for reporting/read models;
+- Elasticsearch;
+- MinIO/S3 abstraction;
+- Polly;
+- OpenTelemetry;
+- Prometheus/Grafana;
+- distributed tracing;
+- Docker Compose;
+- GitHub Actions.
+
+## Design principles
+
+- PostgreSQL is the source of truth.
+- Tenant isolation is explicit.
+- Domain rules stay in the Domain layer.
+- Application orchestrates use cases.
+- Infrastructure implements external concerns.
+- API controllers stay thin.
+- Technologies are added only when they solve a concrete problem.
+- The system remains a modular monolith until there is a real reason to split services.
+
+## Next development steps
+
+The immediate next work is:
+
+1. finish authentication with refresh tokens;
+2. enforce tenant identity from JWT against route organization IDs;
+3. protect booking endpoints with authorization;
+4. expand API use cases;
+5. add asynchronous messaging and real-time functionality incrementally.
