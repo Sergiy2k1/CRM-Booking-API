@@ -3,10 +3,12 @@ using BookingHub.Application.Authentication.Login;
 using BookingHub.Application.Authentication.RefreshSession;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BookingHub.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("auth")]
 [Route("api/auth")]
 public sealed class AuthController : ControllerBase
 {
