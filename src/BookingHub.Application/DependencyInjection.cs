@@ -17,6 +17,14 @@ using BookingHub.Application.Employees.Schedules.CreateWorkingHours;
 using BookingHub.Application.Employees.Schedules.ListTimeOff;
 using BookingHub.Application.Employees.Schedules.ListWorkingHours;
 using BookingHub.Application.Employees.UpdateEmployee;
+using BookingHub.Application.Services.Assignments.AssignService;
+using BookingHub.Application.Services.Assignments.ListEmployeeServices;
+using BookingHub.Application.Services.Assignments.UnassignService;
+using BookingHub.Application.Services.ChangeServiceStatus;
+using BookingHub.Application.Services.CreateService;
+using BookingHub.Application.Services.GetService;
+using BookingHub.Application.Services.ListServices;
+using BookingHub.Application.Services.UpdateService;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BookingHub.Application;
@@ -47,6 +55,15 @@ public static class DependencyInjection
         services.AddScoped<CreateTimeOffHandler>();
         services.AddScoped<ListTimeOffHandler>();
         services.AddScoped<CancelTimeOffHandler>();
+
+        services.AddScoped<CreateServiceHandler>();
+        services.AddScoped<GetServiceHandler>();
+        services.AddScoped<ListServicesHandler>();
+        services.AddScoped<UpdateServiceHandler>();
+        services.AddScoped<ChangeServiceStatusHandler>();
+        services.AddScoped<AssignServiceHandler>();
+        services.AddScoped<ListEmployeeServicesHandler>();
+        services.AddScoped<UnassignServiceHandler>();
 
         return services;
     }
