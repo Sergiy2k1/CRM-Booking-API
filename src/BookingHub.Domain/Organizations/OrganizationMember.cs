@@ -120,7 +120,7 @@ public sealed class OrganizationMember : AggregateRoot
 
     private static void ValidateRole(OrganizationRole role)
     {
-        if (!Enum.IsDefined(typeof(OrganizationRole), role))
+        if (!Enum.IsDefined(role))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(role),
