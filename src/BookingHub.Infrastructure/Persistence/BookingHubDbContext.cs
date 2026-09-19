@@ -3,6 +3,7 @@ using BookingHub.Domain.Bookings;
 using BookingHub.Domain.Customers;
 using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
+using BookingHub.Domain.Notifications;
 using BookingHub.Domain.Services;
 using BookingHub.Domain.Users;
 using BookingHub.Infrastructure.Messaging.Inbox;
@@ -59,6 +60,9 @@ public sealed class BookingHubDbContext
 
     public DbSet<InboxMessage> InboxMessages =>
         Set<InboxMessage>();
+
+    public DbSet<Notification> Notifications =>
+        Set<Notification>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

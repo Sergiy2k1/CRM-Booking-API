@@ -8,4 +8,8 @@ public interface IOrganizationMemberRepository
         Guid organizationId,
         Guid userId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<OrganizationMember>> ListActiveByOrganizationAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default);
 }

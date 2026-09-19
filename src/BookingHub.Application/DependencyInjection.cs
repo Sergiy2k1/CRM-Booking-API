@@ -29,6 +29,8 @@ using BookingHub.Application.Services.CreateService;
 using BookingHub.Application.Services.GetService;
 using BookingHub.Application.Services.ListServices;
 using BookingHub.Application.Services.UpdateService;
+using BookingHub.Application.Notifications.ListNotifications;
+using BookingHub.Application.Notifications.MarkNotificationRead;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BookingHub.Application;
@@ -73,6 +75,9 @@ public static class DependencyInjection
         services.AddScoped<AssignServiceHandler>();
         services.AddScoped<ListEmployeeServicesHandler>();
         services.AddScoped<UnassignServiceHandler>();
+
+        services.AddScoped<ListNotificationsHandler>();
+        services.AddScoped<MarkNotificationReadHandler>();
 
         return services;
     }

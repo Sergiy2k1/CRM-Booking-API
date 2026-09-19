@@ -28,4 +28,18 @@ internal sealed class OrganizationMemberRepository
                     x.UserId == userId,
                 cancellationToken);
     }
+
+    public async Task<IReadOnlyCollection<OrganizationMember>> ListActiveByOrganizationAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.OrganizationMembers
+            .AsNoTracking()
+            .Where(
+                x =>
+                    x.OrganizationId == organizationId &&
+                    x.Status == OrganizationMemberStatus.Active)
+            .OrderBy(x => x.UserId)
+            .ToListAsync(cancellationToken);
+    }
 }
