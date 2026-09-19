@@ -32,6 +32,9 @@ internal sealed class BookingConfiguration
         builder.Property(x => x.Status)
             .HasConversion<int>();
 
+        builder.Property(x => x.UpdatedAtUtc)
+            .IsConcurrencyToken();
+
         builder.HasIndex(x => new
         {
             x.OrganizationId,
