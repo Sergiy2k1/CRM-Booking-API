@@ -8,6 +8,56 @@ namespace BookingHub.Infrastructure.Persistence.Migrations;
 [Migration("20260919183000_InitialBookingPersistence")]
 public sealed class InitialBookingPersistence : Migration
 {
+    private static readonly string[] CustomerNameIndexColumns =
+    [
+        "OrganizationId",
+        "LastName",
+        "FirstName"
+    ];
+
+    private static readonly string[] EmployeeNameIndexColumns =
+    [
+        "OrganizationId",
+        "FirstName",
+        "LastName"
+    ];
+
+    private static readonly string[] ServiceNameIndexColumns =
+    [
+        "OrganizationId",
+        "Name"
+    ];
+
+    private static readonly string[] EmployeeServiceIndexColumns =
+    [
+        "OrganizationId",
+        "EmployeeId",
+        "ServiceId"
+    ];
+
+    private static readonly string[] WorkingHoursIndexColumns =
+    [
+        "OrganizationId",
+        "EmployeeId",
+        "DayOfWeek"
+    ];
+
+    private static readonly string[] TimeOffIndexColumns =
+    [
+        "OrganizationId",
+        "EmployeeId",
+        "StartsAtUtc",
+        "EndsAtUtc"
+    ];
+
+    private static readonly string[] BookingTimeIndexColumns =
+    [
+        "OrganizationId",
+        "EmployeeId",
+        "StartsAtUtc",
+        "EndsAtUtc"
+    ];
+
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql(
@@ -457,31 +507,17 @@ public sealed class InitialBookingPersistence : Migration
         migrationBuilder.CreateIndex(
             name: "IX_customers_OrganizationId_LastName_FirstName",
             table: "customers",
-            columns: new[]
-            {
-                "OrganizationId",
-                "LastName",
-                "FirstName"
-            });
+            columns: CustomerNameIndexColumns);
 
         migrationBuilder.CreateIndex(
             name: "IX_employees_OrganizationId_FirstName_LastName",
             table: "employees",
-            columns: new[]
-            {
-                "OrganizationId",
-                "FirstName",
-                "LastName"
-            });
+            columns: EmployeeNameIndexColumns);
 
         migrationBuilder.CreateIndex(
             name: "IX_services_OrganizationId_Name",
             table: "services",
-            columns: new[]
-            {
-                "OrganizationId",
-                "Name"
-            });
+            columns: ServiceNameIndexColumns);
 
         migrationBuilder.CreateIndex(
             name: "IX_employee_services_EmployeeId",
@@ -496,12 +532,7 @@ public sealed class InitialBookingPersistence : Migration
         migrationBuilder.CreateIndex(
             name: "IX_employee_services_OrganizationId_EmployeeId_ServiceId",
             table: "employee_services",
-            columns: new[]
-            {
-                "OrganizationId",
-                "EmployeeId",
-                "ServiceId"
-            },
+            columns: EmployeeServiceIndexColumns,
             unique: true);
 
         migrationBuilder.CreateIndex(
@@ -512,12 +543,7 @@ public sealed class InitialBookingPersistence : Migration
         migrationBuilder.CreateIndex(
             name: "IX_employee_working_hours_OrganizationId_EmployeeId_DayOfWeek",
             table: "employee_working_hours",
-            columns: new[]
-            {
-                "OrganizationId",
-                "EmployeeId",
-                "DayOfWeek"
-            });
+            columns: WorkingHoursIndexColumns);
 
         migrationBuilder.CreateIndex(
             name: "IX_employee_time_off_EmployeeId",
@@ -527,13 +553,7 @@ public sealed class InitialBookingPersistence : Migration
         migrationBuilder.CreateIndex(
             name: "IX_employee_time_off_OrganizationId_EmployeeId_StartsAtUtc_EndsAtUtc",
             table: "employee_time_off",
-            columns: new[]
-            {
-                "OrganizationId",
-                "EmployeeId",
-                "StartsAtUtc",
-                "EndsAtUtc"
-            });
+            columns: TimeOffIndexColumns);
 
         migrationBuilder.CreateIndex(
             name: "IX_bookings_CustomerId",
@@ -553,13 +573,7 @@ public sealed class InitialBookingPersistence : Migration
         migrationBuilder.CreateIndex(
             name: "IX_bookings_OrganizationId_EmployeeId_StartsAtUtc_EndsAtUtc",
             table: "bookings",
-            columns: new[]
-            {
-                "OrganizationId",
-                "EmployeeId",
-                "StartsAtUtc",
-                "EndsAtUtc"
-            });
+            columns: BookingTimeIndexColumns);
 
         migrationBuilder.Sql(
             """
