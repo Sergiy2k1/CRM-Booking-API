@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using BookingHub.Api.ErrorHandling;
 using BookingHub.Application;
 using BookingHub.Infrastructure;
 
@@ -7,10 +9,21 @@ builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(
+        options =>
+            options.JsonSerializerOptions.Converters.Add(
+                new JsonStringEnumConverter()));
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
