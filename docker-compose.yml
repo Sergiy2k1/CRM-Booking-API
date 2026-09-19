@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: bookinghub
       POSTGRES_USER: bookinghub
-      POSTGRES_PASSWORD: bookinghub
+      POSTGRES_PASSWORD: ${BOOKINGHUB_DB_PASSWORD:-bookinghub}
     ports:
       - "5432:5432"
     volumes:
@@ -20,7 +20,7 @@ services:
     image: rabbitmq:4-management
     environment:
       RABBITMQ_DEFAULT_USER: bookinghub
-      RABBITMQ_DEFAULT_PASS: bookinghub
+      RABBITMQ_DEFAULT_PASS: ${BOOKINGHUB_RABBITMQ_PASSWORD:-bookinghub}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -39,12 +39,12 @@ services:
       dockerfile: src/BookingHub.Api/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=bookinghub;GSS Encryption Mode=Disable
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bookinghub;Username=bookinghub;Password=${BOOKINGHUB_DB_PASSWORD:-bookinghub};GSS Encryption Mode=Disable
       Database__MigrateOnStartup: "true"
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: "5672"
       RabbitMq__UserName: bookinghub
-      RabbitMq__Password: bookinghub
+      RabbitMq__Password: ${BOOKINGHUB_RABBITMQ_PASSWORD:-bookinghub}
       RabbitMq__VirtualHost: /
       RabbitMq__Exchange: bookinghub.events
       RabbitMq__Queue: bookinghub.realtime
@@ -52,7 +52,7 @@ services:
       RabbitMq__ReconnectSeconds: "5"
       Jwt__Issuer: BookingHub
       Jwt__Audience: BookingHub.Api
-      Jwt__SigningKey: development-only-signing-key-change-before-production-2026
+      Jwt__SigningKey: ${BOOKINGHUB_JWT_SIGNING_KEY:-development-only-signing-key-change-before-production-2026}
       Jwt__AccessTokenMinutes: "15"
       Jwt__RefreshTokenDays: "30"
       ExportStorage__RootPath: /data/exports
@@ -80,7 +80,7 @@ services:
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: "5672"
       RabbitMq__UserName: bookinghub
-      RabbitMq__Password: bookinghub
+      RabbitMq__Password: ${BOOKINGHUB_RABBITMQ_PASSWORD:-bookinghub}
       RabbitMq__VirtualHost: /
       RabbitMq__Exchange: bookinghub.events
       RabbitMq__NotificationQueue: bookinghub.notifications
