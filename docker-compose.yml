@@ -55,6 +55,9 @@ services:
       Jwt__SigningKey: development-only-signing-key-change-before-production-2026
       Jwt__AccessTokenMinutes: "15"
       Jwt__RefreshTokenDays: "30"
+      ExportStorage__RootPath: /data/exports
+    volumes:
+      - bookinghub-exports:/data/exports
     ports:
       - "8080:8080"
     depends_on:
@@ -82,6 +85,11 @@ services:
       Outbox__BatchSize: "50"
       Outbox__PollIntervalSeconds: "2"
       Outbox__MaxAttempts: "10"
+      ExportStorage__RootPath: /data/exports
+      BookingExports__PollIntervalSeconds: "2"
+      BookingExports__MaxAttempts: "3"
+    volumes:
+      - bookinghub-exports:/data/exports
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,3 +102,4 @@ services:
 volumes:
   bookinghub-postgres:
   bookinghub-rabbitmq:
+  bookinghub-exports:
