@@ -33,6 +33,9 @@ The project currently includes:
 - tenant-aware authorization policy for organization routes;
 - protected booking endpoint with `401`/`403` tenant enforcement;
 - role-based booking management policy for Owner/Admin/Manager/Receptionist;
+- employee management API with tenant-safe read/write flows;
+- employee working-hours and time-off management;
+- employee schedule role policies and overlap protection;
 - unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
 
 ## Architecture
@@ -310,7 +313,7 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. expand booking/customer/employee API use cases;
+1. finish service management and remaining booking lifecycle API use cases;
 2. expand role/permission rules to additional use cases;
 3. add asynchronous messaging with Transactional Outbox and RabbitMQ;
 4. add SignalR real-time booking updates;
