@@ -1,0 +1,30 @@
+groups:
+  - name: bookinghub
+    interval: 30s
+    rules:
+      - alert: BookingHubTelemetryTargetDown
+        expr: up{job="bookinghub-otel"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: BookingHub telemetry target is down
+          description: OpenTelemetry Collector metrics endpoint has been unreachable for more than one minute.
+
+      - alert: BookingHubOutboxPublishFailures
+        expr: increase(bookinghub_outbox_failed_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: BookingHub Outbox publish failures detected
+          description: One or more Outbox messages failed to publish during the last five minutes.
+
+      - alert: BookingHubCsvExportFailures
+        expr: increase(bookinghub_exports_failed_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: BookingHub CSV export failures detected
+          description: One or more booking CSV exports failed during the last five minutes.
