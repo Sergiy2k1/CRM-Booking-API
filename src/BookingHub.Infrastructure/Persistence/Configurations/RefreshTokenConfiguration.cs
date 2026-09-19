@@ -19,6 +19,9 @@ internal sealed class RefreshTokenConfiguration
             .HasMaxLength(RefreshToken.MaxTokenHashLength)
             .IsRequired();
 
+        builder.Property(x => x.RevokedAtUtc)
+            .IsConcurrencyToken();
+
         builder.HasIndex(x => x.TokenHash)
             .IsUnique();
 
