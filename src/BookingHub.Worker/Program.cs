@@ -11,6 +11,11 @@ builder.Services
 builder.Services.AddWorkerObservability(
     builder.Configuration);
 
+builder.Services.Configure<HostOptions>(
+    options =>
+        options.ShutdownTimeout =
+            TimeSpan.FromSeconds(30));
+
 builder.Services.AddHostedService<BookingHub.Worker.Outbox.OutboxPublisherWorker>();
 builder.Services.AddHostedService<BookingHub.Worker.Notifications.BookingNotificationConsumer>();
 builder.Services.AddHostedService<BookingHub.Worker.Exports.BookingCsvExportWorker>();
