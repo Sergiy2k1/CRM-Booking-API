@@ -23,6 +23,7 @@ public sealed class BookingCsvExportWorker
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BookingCsvExportWorker> _logger;
     private readonly TimeSpan _pollInterval;
+    private readonly TimeSpan _claimTimeout;
     private readonly int _maxAttempts;
 
     public BookingCsvExportWorker(
@@ -43,6 +44,12 @@ public sealed class BookingCsvExportWorker
             ReadPositiveInt(
                 configuration["BookingExports:MaxAttempts"],
                 3);
+
+        _claimTimeout =
+            TimeSpan.FromMinutes(
+                ReadPositiveInt(
+                    configuration["BookingExports:ClaimTimeoutMinutes"],
+                    5));
     }
 
     protected override async Task ExecuteAsync(
@@ -101,13 +108,21 @@ public sealed class BookingCsvExportWorker
             await dbContext.Database.BeginTransactionAsync(
                 cancellationToken);
 
+        var staleBeforeUtc =
+            DateTimeOffset.UtcNow.Subtract(
+                _claimTimeout);
+
         var exportJob =
             await dbContext.BookingExportJobs
-                .FromSqlRaw(
-                    """
+                .FromSqlInterpolated(
+                    $"""
                     SELECT *
                     FROM booking_export_jobs
-                    WHERE "Status" = 1
+                    WHERE "Status" = {(int)BookingExportStatus.Pending}
+                       OR (
+                            "Status" = {(int)BookingExportStatus.Processing}
+                            AND "StartedAtUtc" < {staleBeforeUtc}
+                          )
                     ORDER BY "CreatedAtUtc", "Id"
                     FOR UPDATE SKIP LOCKED
                     LIMIT 1
