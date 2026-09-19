@@ -11,4 +11,6 @@ public static class AuthorizationPolicies
     public const string EmployeeManagement = "EmployeeManagement";
 
     public const string ServiceManagement = "ServiceManagement";
+
+    public const string Reporting = "Reporting";
 }

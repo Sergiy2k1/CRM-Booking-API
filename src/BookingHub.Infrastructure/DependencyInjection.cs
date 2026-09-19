@@ -1,6 +1,7 @@
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Authentication;
 using BookingHub.Application.Abstractions.Persistence;
+using BookingHub.Application.Abstractions.Reporting;
 using BookingHub.Application.Abstractions.Messaging;
 using BookingHub.Infrastructure.Authentication;
 using BookingHub.Infrastructure.Identifiers;
@@ -9,6 +10,7 @@ using BookingHub.Infrastructure.Messaging.Outbox;
 using BookingHub.Infrastructure.Messaging.RabbitMq;
 using BookingHub.Infrastructure.Persistence;
 using BookingHub.Infrastructure.Persistence.Repositories;
+using BookingHub.Infrastructure.Reporting;
 using BookingHub.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -42,6 +44,8 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeScheduleRepository, EmployeeScheduleRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IBookingReportReader>(
+            _ => new DapperBookingReportReader(connectionString));
         services.AddScoped<IOutboxWriter, OutboxWriter>();
         services.AddScoped<OutboxRepository>();
         services.AddScoped<InboxRepository>();
