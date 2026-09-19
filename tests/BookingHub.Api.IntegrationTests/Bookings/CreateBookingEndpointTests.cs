@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using BookingHub.Api.Contracts.Bookings;
 using BookingHub.Application.Abstractions;
 using BookingHub.Application.Abstractions.Persistence;
@@ -20,6 +22,15 @@ namespace BookingHub.Api.IntegrationTests.Bookings;
 
 public sealed class CreateBookingEndpointTests
 {
+    private static readonly JsonSerializerOptions JsonOptions =
+        new(JsonSerializerDefaults.Web)
+        {
+            Converters =
+            {
+                new JsonStringEnumConverter()
+            }
+        };
+
     [Fact]
     public async Task PostWithValidRequestShouldReturnCreatedBooking()
     {
@@ -53,6 +64,7 @@ public sealed class CreateBookingEndpointTests
         var body =
             await response.Content
                 .ReadFromJsonAsync<CreateBookingResponse>(
+                    JsonOptions,
                     TestContext.Current.CancellationToken);
 
         Assert.NotNull(body);
@@ -124,6 +136,7 @@ public sealed class CreateBookingEndpointTests
         var problem =
             await response.Content
                 .ReadFromJsonAsync<ProblemDetailsResponse>(
+                    JsonOptions,
                     TestContext.Current.CancellationToken);
 
         Assert.NotNull(problem);
