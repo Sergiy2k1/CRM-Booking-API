@@ -21,6 +21,8 @@ The project currently includes:
 - PostgreSQL persistence with Entity Framework Core;
 - PostgreSQL migrations;
 - database-level double-booking protection with a GiST exclusion constraint;
+- optimistic concurrency for booking lifecycle updates;
+- database-level working-hours overlap protection;
 - complete booking lifecycle application use cases;
 - booking create/get/list/confirm/reschedule/cancel/complete/no-show HTTP endpoints;
 - centralized Problem Details error handling;
@@ -29,6 +31,8 @@ The project currently includes:
 - tenant-aware JWT claims;
 - login use case and `/api/auth/login` endpoint;
 - opaque refresh tokens with SHA-256 hashing and rotation;
+- optimistic-concurrency protection for refresh-token rotation;
+- rate limiting for login and refresh endpoints;
 - `/api/auth/refresh` session renewal endpoint;
 - tenant-aware authorization policy for organization routes;
 - protected booking endpoint with `401`/`403` tenant enforcement;
@@ -42,6 +46,7 @@ The project currently includes:
 - RabbitMQ topic exchange publishing from the Worker;
 - publisher confirms before outbox messages are marked processed;
 - retry tracking for failed outbox messages;
+- multi-worker-safe Outbox claiming with PostgreSQL `FOR UPDATE SKIP LOCKED`;
 - authenticated SignalR booking hub;
 - RabbitMQ-to-SignalR realtime booking event bridge;
 - organization-scoped SignalR groups;
@@ -52,6 +57,7 @@ The project currently includes:
 - Dapper booking summary reporting read model;
 - currency-safe completed-revenue aggregation;
 - asynchronous booking CSV export jobs;
+- spreadsheet-formula injection protection for generated CSV;
 - concurrent-safe export claiming with PostgreSQL `FOR UPDATE SKIP LOCKED`;
 - retry/reclaim handling for stale export jobs;
 - shared file-storage abstraction with local Docker volume implementation;
@@ -68,6 +74,12 @@ The project currently includes:
 - Docker Compose local stack for PostgreSQL, RabbitMQ, API and Worker;
 - GitHub Actions CI for restore, build, tests, compose validation and container builds;
 - unit tests, API integration tests and PostgreSQL integration tests with Testcontainers.
+
+## Scope boundary
+
+The current repository is effectively complete for the **core multi-tenant booking backend** described in this README.
+
+The broader product roadmap is intentionally not presented as finished. Payments, public/self-service booking, full customer notes/tags/files workflows, external object storage and multi-replica SignalR scale-out remain separate product increments and should be added only when their requirements are defined.
 
 ## Architecture
 
@@ -409,7 +421,7 @@ Implemented now:
 - Grafana;
 - Tempo.
 
-Implemented now:
+Additional infrastructure:
 
 - RabbitMQ;
 - Transactional Outbox;
