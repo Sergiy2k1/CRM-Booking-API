@@ -55,6 +55,10 @@ The project currently includes:
 - concurrent-safe export claiming with PostgreSQL `FOR UPDATE SKIP LOCKED`;
 - retry/reclaim handling for stale export jobs;
 - shared file-storage abstraction with local Docker volume implementation;
+- OpenTelemetry tracing and metrics for API and Worker;
+- custom Worker metrics for Outbox and CSV exports;
+- local OpenTelemetry Collector, Prometheus, Tempo and Grafana stack;
+- pre-provisioned Grafana data sources and BookingHub dashboard;
 - Dockerfiles for API and Worker;
 - Docker Compose local stack for PostgreSQL, RabbitMQ, API and Worker;
 - GitHub Actions CI for restore, build, tests, compose validation and container builds;
@@ -280,9 +284,34 @@ API health:        http://localhost:8080/health
 RabbitMQ UI:       http://localhost:15672
 RabbitMQ AMQP:     localhost:5672
 PostgreSQL:        localhost:5432
+Grafana:           http://localhost:3000
+Prometheus:        http://localhost:9090
+Tempo API:         http://localhost:3200
+OTLP gRPC:         localhost:4317
+OTLP HTTP:         localhost:4318
 ```
 
 RabbitMQ local credentials are `bookinghub` / `bookinghub`.
+
+### Observability
+
+Docker Compose enables OpenTelemetry for the API and Worker and sends OTLP telemetry to the local Collector.
+
+```text
+BookingHub.Api / BookingHub.Worker
+            ↓ OTLP
+OpenTelemetry Collector
+      ├─ traces  → Tempo
+      └─ metrics → Prometheus
+                       ↓
+                    Grafana
+```
+
+Open Grafana at `http://localhost:3000`. Anonymous local access is enabled for development, and the `BookingHub / BookingHub Overview` dashboard is provisioned automatically.
+
+The dashboard includes API request rate, p95 HTTP latency, successful/failed Outbox publishes, and successful/failed CSV exports. Tempo is provisioned as the trace data source for request and Worker span exploration.
+
+OpenTelemetry stays disabled by default in `appsettings.json`; Docker Compose explicitly enables it with `OpenTelemetry__Enabled=true` and points both processes at `http://otel-collector:4317`.
 
 The Compose API enables `Database__MigrateOnStartup=true`, so EF Core migrations are applied on local container startup. Production deployments should keep this disabled and apply migrations as a separate deployment step.
 
@@ -351,7 +380,11 @@ Implemented now:
 - NSubstitute;
 - Testcontainers;
 - WebApplicationFactory;
-- OpenAPI.
+- OpenAPI;
+- OpenTelemetry;
+- Prometheus;
+- Grafana;
+- Tempo.
 
 Implemented now:
 
@@ -368,9 +401,6 @@ Planned as the project grows:
 - Elasticsearch;
 - MinIO/S3 abstraction;
 - Polly;
-- OpenTelemetry;
-- Prometheus/Grafana;
-- distributed tracing.
 
 ## Design principles
 
@@ -387,8 +417,8 @@ Planned as the project grows:
 
 The immediate next work is:
 
-1. add OpenTelemetry metrics and distributed tracing;
-2. add production secret/configuration hardening;
-3. add deployment-specific health/readiness and operational dashboards;
-4. add Redis/search only where justified by measured needs;
-5. replace local export storage with MinIO/S3 when deployment requirements justify it.
+1. add production secret/configuration hardening;
+2. add deployment-specific readiness checks and alerting rules;
+3. add Redis/search only where justified by measured needs;
+4. replace local export storage with MinIO/S3 when deployment requirements justify it;
+5. harden observability retention, sampling and authentication for production.
