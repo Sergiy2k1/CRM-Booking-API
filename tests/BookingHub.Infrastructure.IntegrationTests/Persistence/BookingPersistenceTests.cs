@@ -131,7 +131,10 @@ public sealed class BookingPersistenceTests
         await dbContext.SaveChangesAsync(
             TestContext.Current.CancellationToken);
 
-        dbContext.InboxMessages.Add(
+        await using var duplicateDbContext =
+            new BookingHubDbContext(options);
+
+        duplicateDbContext.InboxMessages.Add(
             InboxMessage.Create(
                 "bookinghub.realtime",
                 messageId,
@@ -141,7 +144,7 @@ public sealed class BookingPersistenceTests
             await Assert.ThrowsAsync<DbUpdateException>(
                 async () =>
                 {
-                    await dbContext.SaveChangesAsync(
+                    await duplicateDbContext.SaveChangesAsync(
                         TestContext.Current.CancellationToken);
                 });
 
