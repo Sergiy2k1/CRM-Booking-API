@@ -3,6 +3,8 @@ using BookingHub.Domain.Bookings;
 using BookingHub.Domain.Customers;
 using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
+using BookingHub.Domain.Notifications;
+using BookingHub.Domain.Users;
 using BookingHub.Domain.Services;
 using BookingHub.Infrastructure.Persistence;
 using BookingHub.Infrastructure.Messaging.Inbox;
@@ -139,6 +141,116 @@ public sealed class BookingPersistenceTests
                 "bookinghub.realtime",
                 messageId,
                 processedAtUtc.AddSeconds(1)));
+
+        var exception =
+            await Assert.ThrowsAsync<DbUpdateException>(
+                async () =>
+                {
+                    await duplicateDbContext.SaveChangesAsync(
+                        TestContext.Current.CancellationToken);
+                });
+
+        var postgresException =
+            Assert.IsType<PostgresException>(
+                exception.InnerException);
+
+        Assert.Equal(
+            PostgresErrorCodes.UniqueViolation,
+            postgresException.SqlState);
+    }
+
+    [Fact]
+    public async Task NotificationMigrationShouldRejectDuplicateSourceForSameUser()
+    {
+        await using var postgreSqlContainer =
+            new PostgreSqlBuilder("postgres:17-alpine")
+                .WithDatabase("bookinghub")
+                .WithUsername("bookinghub")
+                .WithPassword("bookinghub")
+                .Build();
+
+        await postgreSqlContainer.StartAsync(
+            TestContext.Current.CancellationToken);
+
+        var options =
+            new DbContextOptionsBuilder<BookingHubDbContext>()
+                .UseNpgsql(
+                    postgreSqlContainer.GetConnectionString())
+                .Options;
+
+        await using var dbContext =
+            new BookingHubDbContext(options);
+
+        await dbContext.Database.MigrateAsync(
+            TestContext.Current.CancellationToken);
+
+        var organizationId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var sourceMessageId = Guid.NewGuid();
+
+        var createdAtUtc =
+            new DateTimeOffset(
+                2026,
+                9,
+                19,
+                21,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        var organization =
+            Organization.Create(
+                organizationId,
+                "Beauty Studio",
+                "beauty-studio",
+                "UTC",
+                createdAtUtc);
+
+        var user =
+            User.Create(
+                userId,
+                "notify@example.com",
+                "password-hash",
+                "Notify",
+                "User",
+                createdAtUtc);
+
+        dbContext.AddRange(
+            organization,
+            user);
+
+        await dbContext.SaveChangesAsync(
+            TestContext.Current.CancellationToken);
+
+        dbContext.Notifications.Add(
+            Notification.Create(
+                Guid.NewGuid(),
+                organizationId,
+                userId,
+                sourceMessageId,
+                "booking.created",
+                "Booking created",
+                "A booking was created.",
+                Guid.NewGuid(),
+                createdAtUtc));
+
+        await dbContext.SaveChangesAsync(
+            TestContext.Current.CancellationToken);
+
+        await using var duplicateDbContext =
+            new BookingHubDbContext(options);
+
+        duplicateDbContext.Notifications.Add(
+            Notification.Create(
+                Guid.NewGuid(),
+                organizationId,
+                userId,
+                sourceMessageId,
+                "booking.created",
+                "Booking created",
+                "Duplicate notification.",
+                Guid.NewGuid(),
+                createdAtUtc.AddSeconds(1)));
 
         var exception =
             await Assert.ThrowsAsync<DbUpdateException>(
