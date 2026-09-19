@@ -17,8 +17,7 @@ public sealed class BookingPersistenceTests
     public async Task MigrationAndDoubleBookingConstraintShouldWork()
     {
         await using var postgreSqlContainer =
-            new PostgreSqlBuilder()
-                .WithImage("postgres:17-alpine")
+            new PostgreSqlBuilder("postgres:17-alpine")
                 .WithDatabase("bookinghub")
                 .WithUsername("bookinghub")
                 .WithPassword("bookinghub")
