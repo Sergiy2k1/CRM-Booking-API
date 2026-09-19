@@ -1,5 +1,6 @@
 using BookingHub.Application.Abstractions.Reporting;
 using BookingHub.Application.Reporting.BookingExports;
+using BookingHub.Domain.Bookings;
 using Dapper;
 using Npgsql;
 
@@ -70,9 +71,72 @@ public sealed class DapperBookingExportReader
                 cancellationToken: cancellationToken);
 
         var rows =
-            await connection.QueryAsync<BookingExportRow>(
+            await connection.QueryAsync<DatabaseBookingExportRow>(
                 command);
 
-        return rows.AsList();
+        return rows
+            .Select(Map)
+            .ToArray();
+    }
+
+    private static BookingExportRow Map(
+        DatabaseBookingExportRow row)
+    {
+        var status =
+            (BookingStatus)row.Status;
+
+        if (!Enum.IsDefined(status))
+        {
+            throw new InvalidOperationException(
+                $"Booking status value '{row.Status}' is not supported.");
+        }
+
+        return new BookingExportRow(
+            row.BookingId,
+            ToUtcOffset(row.StartsAtUtc),
+            ToUtcOffset(row.EndsAtUtc),
+            status,
+            row.CustomerName,
+            row.EmployeeName,
+            row.ServiceName,
+            row.PriceAmount,
+            row.Currency,
+            row.Notes);
+    }
+
+    private static DateTimeOffset ToUtcOffset(
+        DateTime value)
+    {
+        return new DateTimeOffset(
+            DateTime.SpecifyKind(
+                value,
+                DateTimeKind.Utc));
+    }
+
+    private sealed class DatabaseBookingExportRow
+    {
+        public Guid BookingId { get; init; }
+
+        public DateTime StartsAtUtc { get; init; }
+
+        public DateTime EndsAtUtc { get; init; }
+
+        public int Status { get; init; }
+
+        public string CustomerName { get; init; } =
+            string.Empty;
+
+        public string EmployeeName { get; init; } =
+            string.Empty;
+
+        public string ServiceName { get; init; } =
+            string.Empty;
+
+        public decimal PriceAmount { get; init; }
+
+        public string Currency { get; init; } =
+            string.Empty;
+
+        public string? Notes { get; init; }
     }
 }
