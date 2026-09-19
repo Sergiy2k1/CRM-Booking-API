@@ -1,8 +1,12 @@
 using BookingHub.Application;
 using BookingHub.Infrastructure;
+using BookingHub.Worker.Configuration;
 using BookingHub.Worker.Observability;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+StartupConfigurationValidator.Validate(
+    builder.Configuration);
 
 builder.Services
     .AddApplication()
