@@ -1,5 +1,7 @@
 using BookingHub.Application.Abstractions;
+using BookingHub.Application.Abstractions.Authentication;
 using BookingHub.Application.Abstractions.Persistence;
+using BookingHub.Infrastructure.Authentication;
 using BookingHub.Infrastructure.Identifiers;
 using BookingHub.Infrastructure.Persistence;
 using BookingHub.Infrastructure.Persistence.Repositories;
@@ -26,6 +28,8 @@ public static class DependencyInjection
                 options.UseNpgsql(connectionString));
 
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
@@ -39,6 +43,8 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<IGuidGenerator, GuidGenerator>();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IAccessTokenProvider, JwtAccessTokenProvider>();
 
         return services;
     }

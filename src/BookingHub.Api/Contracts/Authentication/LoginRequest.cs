@@ -1,0 +1,6 @@
+namespace BookingHub.Api.Contracts.Authentication;
+
+public sealed record LoginRequest(
+    string Email,
+    string Password,
+    Guid OrganizationId);

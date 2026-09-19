@@ -1,3 +1,4 @@
+using BookingHub.Application.Authentication.Login;
 using BookingHub.Application.Bookings.CreateBooking;
 using BookingHub.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
@@ -31,6 +32,14 @@ public sealed class ApiExceptionHandler : IExceptionHandler
     {
         return exception switch
         {
+            InvalidCredentialsException =>
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status401Unauthorized,
+                    Title = "Invalid credentials",
+                    Detail = "The supplied credentials are invalid."
+                },
+
             EntityNotFoundException notFoundException =>
                 new ProblemDetails
                 {

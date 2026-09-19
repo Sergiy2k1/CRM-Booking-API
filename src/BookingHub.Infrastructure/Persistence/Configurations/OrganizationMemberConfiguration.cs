@@ -1,4 +1,3 @@
-using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -6,25 +5,18 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace BookingHub.Infrastructure.Persistence.Configurations;
 
-internal sealed class EmployeeConfiguration
-    : IEntityTypeConfiguration<Employee>
+internal sealed class OrganizationMemberConfiguration
+    : IEntityTypeConfiguration<OrganizationMember>
 {
     public void Configure(
-        EntityTypeBuilder<Employee> builder)
+        EntityTypeBuilder<OrganizationMember> builder)
     {
-        builder.ToTable("employees");
+        builder.ToTable("organization_members");
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.FirstName)
-            .HasMaxLength(Employee.MaxFirstNameLength)
-            .IsRequired();
-
-        builder.Property(x => x.LastName)
-            .HasMaxLength(Employee.MaxLastNameLength);
-
-        builder.Property(x => x.Position)
-            .HasMaxLength(Employee.MaxPositionLength);
+        builder.Property(x => x.Role)
+            .HasConversion<int>();
 
         builder.Property(x => x.Status)
             .HasConversion<int>();
@@ -32,11 +24,9 @@ internal sealed class EmployeeConfiguration
         builder.HasIndex(x => new
         {
             x.OrganizationId,
-            x.FirstName,
-            x.LastName
-        });
-
-        builder.HasIndex(x => x.UserId);
+            x.UserId
+        })
+        .IsUnique();
 
         builder.HasOne<Organization>()
             .WithMany()

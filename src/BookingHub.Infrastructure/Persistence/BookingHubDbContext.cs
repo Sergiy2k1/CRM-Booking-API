@@ -4,6 +4,7 @@ using BookingHub.Domain.Customers;
 using BookingHub.Domain.Employees;
 using BookingHub.Domain.Organizations;
 using BookingHub.Domain.Services;
+using BookingHub.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookingHub.Infrastructure.Persistence;
@@ -20,6 +21,12 @@ public sealed class BookingHubDbContext
 
     public DbSet<Organization> Organizations =>
         Set<Organization>();
+
+    public DbSet<OrganizationMember> OrganizationMembers =>
+        Set<OrganizationMember>();
+
+    public DbSet<User> Users =>
+        Set<User>();
 
     public DbSet<Customer> Customers =>
         Set<Customer>();

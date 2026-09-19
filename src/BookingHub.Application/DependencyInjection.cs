@@ -1,3 +1,4 @@
+using BookingHub.Application.Authentication.Login;
 using BookingHub.Application.Bookings.CreateBooking;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,6 +10,7 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddScoped<CreateBookingHandler>();
+        services.AddScoped<LoginHandler>();
 
         return services;
     }
