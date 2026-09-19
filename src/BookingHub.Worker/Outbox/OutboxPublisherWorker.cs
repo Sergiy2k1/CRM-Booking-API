@@ -13,6 +13,12 @@ public sealed class OutboxPublisherWorker
             new EventId(1001, nameof(LogPublishFailure)),
             "Failed to publish outbox message {OutboxMessageId} of type {OutboxMessageType}. Attempt {AttemptCount}.");
 
+    private static readonly Action<ILogger, Exception?> LogProcessingFailure =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1002, nameof(LogProcessingFailure)),
+            "Outbox polling failed. The worker will retry.");
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMqPublisher _publisher;
     private readonly ILogger<OutboxPublisherWorker> _logger;
@@ -52,12 +58,30 @@ public sealed class OutboxPublisherWorker
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            var publishedCount =
-                await PublishPendingAsync(
-                    stoppingToken);
-
-            if (publishedCount == 0)
+            try
             {
+                var publishedCount =
+                    await PublishPendingAsync(
+                        stoppingToken);
+
+                if (publishedCount == 0)
+                {
+                    await Task.Delay(
+                        _pollInterval,
+                        stoppingToken);
+                }
+            }
+            catch (OperationCanceledException)
+                when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception exception)
+            {
+                LogProcessingFailure(
+                    _logger,
+                    exception);
+
                 await Task.Delay(
                     _pollInterval,
                     stoppingToken);

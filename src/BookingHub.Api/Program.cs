@@ -7,8 +7,10 @@ using BookingHub.Api.Realtime;
 using BookingHub.Application;
 using BookingHub.Domain.Organizations;
 using BookingHub.Infrastructure;
+using BookingHub.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -171,8 +173,24 @@ builder.Services
                 new JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+if (bool.TryParse(
+        builder.Configuration["Database:MigrateOnStartup"],
+        out var migrateOnStartup) &&
+    migrateOnStartup)
+{
+    await using var scope =
+        app.Services.CreateAsyncScope();
+
+    var dbContext =
+        scope.ServiceProvider
+            .GetRequiredService<BookingHubDbContext>();
+
+    await dbContext.Database.MigrateAsync();
+}
 
 app.UseExceptionHandler();
 app.UseAuthentication();
@@ -184,6 +202,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.MapHub<BookingsHub>("/hubs/bookings");
 
 app.Run();
