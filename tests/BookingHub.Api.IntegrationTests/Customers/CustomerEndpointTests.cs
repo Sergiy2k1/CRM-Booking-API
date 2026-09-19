@@ -156,8 +156,8 @@ public sealed class CustomerEndpointTests
 
         var body =
             await response.Content.ReadFromJsonAsync<CustomerResponse>(
-                cancellationToken:
-                    TestContext.Current.CancellationToken);
+                JsonOptions,
+                TestContext.Current.CancellationToken);
 
         Assert.NotNull(body);
         Assert.Equal("Updated", body.FirstName);
