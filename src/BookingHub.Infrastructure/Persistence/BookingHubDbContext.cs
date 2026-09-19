@@ -1,4 +1,7 @@
 using BookingHub.Application.Abstractions.Persistence;
+using BookingHub.Application.Authentication.RefreshSession;
+using BookingHub.Application.Bookings.CreateBooking;
+using BookingHub.Domain.Availability;
 using BookingHub.Domain.Bookings;
 using BookingHub.Domain.Customers;
 using BookingHub.Domain.Employees;
@@ -10,6 +13,7 @@ using BookingHub.Domain.Users;
 using BookingHub.Infrastructure.Messaging.Inbox;
 using BookingHub.Infrastructure.Messaging.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace BookingHub.Infrastructure.Persistence;
 
@@ -80,6 +84,32 @@ public sealed class BookingHubDbContext
     async Task IUnitOfWork.SaveChangesAsync(
         CancellationToken cancellationToken)
     {
-        await SaveChangesAsync(cancellationToken);
+        try
+        {
+            await SaveChangesAsync(
+                cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+            when (exception.Entries.Any(
+                entry => entry.Entity is RefreshToken))
+        {
+            throw new InvalidRefreshTokenException();
+        }
+        catch (DbUpdateException exception)
+            when (IsBookingExclusionViolation(exception))
+        {
+            throw new BookingUnavailableException(
+                EmployeeAvailabilityStatus.BookingConflict);
+        }
+    }
+
+    private static bool IsBookingExclusionViolation(
+        DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.ExclusionViolation,
+            ConstraintName: "EX_bookings_organization_employee_time"
+        };
     }
 }
